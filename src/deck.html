@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Write one test, break a thousand ways</title>
+<style>
+/*FONTS*/
+:root{
+  /* GeoSTQB brand: #111111 black, #1E4DFC blue, #839CFE light blue, #1EFCD0 mint */
+  --bg:#111111; --bg2:#1a1a1e; --bg3:#24242a; --fg:#f3f4f8; --mut:#9094a3; --line:#303038;
+  --blue:#1E4DFC; --sky:#839CFE; --mint:#1EFCD0; --pale:#C8D2FF; --red:#FF5470; --gray:#6b6f80;
+  --on-blue:#ffffff; --logo-text:#ffffff;
+  --c1:#4F72FD; --c2:#6b6f80; --c3:#1EFCD0; --c4:#C8D2FF; --c5:#839CFE;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:"Metropolis",system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif;
+}
+body.light{
+  --bg:#ffffff; --bg2:#f2f4fb; --bg3:#e6eaf7; --fg:#111111; --mut:#5a5f70; --line:#d3d8e8;
+  --blue:#1E4DFC; --sky:#1E4DFC; --mint:#00977a; --pale:#4b5bb5; --red:#d62c4a; --gray:#8a8ea0;
+  --logo-text:#111111;
+  --c1:#1E4DFC; --c2:#8a8ea0; --c3:#00b894; --c4:#7a87d6; --c5:#5b78fd;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:var(--sans);overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1600px;height:900px;transform-origin:center center}
+.slide{position:absolute;inset:0;padding:64px 90px 70px;opacity:0;pointer-events:none;transition:opacity .45s ease;display:flex;flex-direction:column}
+.slide.active{opacity:1;pointer-events:auto}
+.slide>*{flex-shrink:0}
+h1{font-size:80px;line-height:1.04;margin:0 0 24px;letter-spacing:-1.5px;font-weight:800}
+h2{font-size:52px;line-height:1.1;margin:0 0 30px;letter-spacing:-.8px;font-weight:800;max-width:1280px}
+h3{font-size:31px;margin:0 0 12px;font-weight:700}
+p,li{font-size:30px;line-height:1.4}
+ul{margin:0;padding-left:34px}
+b{font-weight:700}
+.mut{color:var(--mut)} .sky{color:var(--sky)} .mint{color:var(--mint)} .red{color:var(--red)} .blue{color:var(--blue)}
+.mono{font-family:var(--mono)} .nowrap{white-space:nowrap}
+.kicker{font-size:20px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--mint);margin-bottom:16px;display:flex;align-items:center}
+.kicker::before{content:"";width:14px;height:14px;background:var(--blue);margin-right:58px;box-shadow:22px 0 0 var(--blue),44px 0 0 var(--blue);flex:none}
+.row{display:flex;gap:36px} .col{display:flex;flex-direction:column;gap:18px}
+.grow{flex:1}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:26px 30px;border-top:4px solid var(--blue)}
+.card h3{color:var(--fg)}
+.card p{font-size:28px;margin:0;line-height:1.4}
+.card.hot{border-color:var(--mint);border-top-color:var(--mint)}
+.big{font-size:120px;font-weight:800;letter-spacing:-3px;line-height:1}
+pre.code{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:6px;padding:22px 26px;font-size:24px;line-height:1.5;margin:0;white-space:pre;overflow:hidden;position:relative;font-family:var(--mono)}
+.kw{color:var(--sky);font-weight:700} .str{color:var(--mint)} .num{color:#ffb36b} .com{color:var(--mut)} .fn{color:var(--pale)}
+body.light .num{color:#b35300}
+.copy{position:absolute;top:10px;right:10px;font:600 16px var(--sans);background:var(--blue);color:#fff;border:0;border-radius:4px;padding:7px 14px;cursor:pointer}
+.copy:hover{filter:brightness(1.15)}
+.hot-code{background:rgba(30,77,252,.35);border-radius:4px;outline:2px solid var(--blue);transition:background .3s}
+.cv{transition:background .3s, outline-color .3s;outline:2px solid transparent;border-radius:4px}
+/* fragments */
+[data-step]{opacity:0;transform:translateY(14px);transition:opacity .45s ease,transform .45s ease}
+[data-step].on{opacity:1;transform:none}
+/* brand chrome inside the stage */
+#cornerLogo{position:absolute;top:40px;right:56px;width:78px;height:78px;transition:opacity .4s;z-index:3}
+#foot{position:absolute;left:90px;bottom:26px;font-size:16px;color:var(--mut);letter-spacing:.5px;transition:opacity .4s;z-index:3}
+#foot b{color:var(--fg)}
+#slideNo{position:absolute;right:56px;bottom:26px;font:600 16px var(--sans);color:var(--mut);z-index:3}
+.cover-on #cornerLogo,.cover-on #foot{opacity:0}
+/* section slides: dot pattern + blue square, as in the brand book */
+.section{justify-content:center}
+.section .num{font-size:34px;font-weight:800;color:var(--mint);margin-bottom:6px}
+.section h1{font-size:100px;max-width:1000px}
+.dots{position:absolute;right:0;top:0;bottom:0;width:640px;background-image:radial-gradient(circle,var(--blue) 2.6px,transparent 3.2px);background-size:40px 40px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 45%);mask-image:linear-gradient(90deg,transparent,#000 45%);opacity:.9;pointer-events:none}
+.dots::after{content:"";position:absolute;right:150px;top:50%;width:200px;height:200px;margin-top:-100px;background:var(--blue)}
+/* chrome outside the stage */
+#progress{position:fixed;left:0;bottom:0;height:5px;background:var(--blue);transition:width .3s}
+#help{position:fixed;left:50%;transform:translateX(-50%);top:10px;font:13px var(--mono);color:var(--mut);opacity:.7;transition:opacity 1s}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;background:rgba(12,12,14,.97);color:#f3f4f8;font:20px/1.5 system-ui,sans-serif;padding:20px 34px 34px;border-top:4px solid #1E4DFC;display:none;z-index:10}
+#notes.show{display:block}
+#notes b{color:#1EFCD0}
+.slide aside.notes{display:none}
+/* chips */
+.chip{display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:22px;padding:7px 13px;border-radius:4px;background:var(--bg3);border:1px solid var(--line);margin:4px;min-width:46px;transition:all .3s}
+.chip.a{border-color:var(--sky);color:var(--sky)} .chip.b{border-color:var(--mint);color:var(--mint)}
+.chip.hot{background:var(--blue);color:#fff;border-color:var(--blue)}
+/* tables */
+table.t{border-collapse:collapse;font-family:var(--mono);font-size:22px}
+table.t th,table.t td{padding:6px 16px;border-bottom:1px solid var(--line);text-align:left;transition:background .25s,color .25s}
+table.t th{color:var(--mut);font-weight:600}
+table.t tr.hl td{background:var(--blue);color:#fff}
+table.t tr.bad td{color:var(--red)}
+table.t tr.bad td:last-child{font-weight:800}
+/* row vs column */
+.strip{display:grid;gap:6px 22px;align-items:center;justify-content:start}
+#rowStrip{grid-template-columns:repeat(4,auto)}
+#colStrip{grid-template-columns:auto auto}
+.run{display:flex;gap:4px}
+.fname{font-family:var(--mono);font-size:18px;color:var(--mut);text-align:right}
+.cell{width:30px;height:30px;border-radius:3px;opacity:.22;transition:opacity .25s, transform .25s}
+.cell.read{opacity:1;transform:scale(1.1)}
+.gap{width:18px}
+.k1{background:var(--c1)} .k2{background:var(--c2)} .k3{background:var(--c3)} .k4{background:var(--c4)} .k5{background:var(--c5)}
+.legend span{display:inline-flex;align-items:center;gap:8px;margin-right:22px;font-size:20px;font-family:var(--mono)}
+.legend i{width:16px;height:16px;border-radius:3px;display:inline-block}
+.meter{font-size:26px}
+.meter b{font-size:34px}
+/* compression */
+.vals{display:flex;flex-wrap:wrap;gap:6px}
+.v{font-family:var(--mono);font-size:22px;padding:6px 10px;border-radius:4px;background:var(--bg3);border:1px solid var(--line);transition:all .5s}
+.v.z{border-color:var(--mint);color:var(--mint)}
+.bar{height:34px;border-radius:3px;transition:width 1.2s ease}
+/* granules */
+.gran{display:grid;grid-template-columns:repeat(8,1fr);gap:10px}
+.g{background:var(--bg2);border:2px solid var(--line);border-radius:4px;padding:12px 10px;font-family:var(--mono);font-size:18px;text-align:center;transition:all .5s}
+.g .mk{color:var(--mut);transition:color .4s}
+.g.idx .mk{color:var(--sky)}
+.g.skip{opacity:.18}
+.g.hit{border-color:var(--mint);background:rgba(30,252,208,.12)}
+/* cores */
+.lane{position:relative;height:54px;background:var(--bg2);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.lane b{position:absolute;left:14px;top:15px;font:600 20px var(--sans);color:var(--mut);z-index:2}
+.blk{position:absolute;top:10px;width:70px;height:34px;border-radius:3px;background:var(--blue);animation:move 3.2s linear infinite}
+@keyframes move{from{left:110px}to{left:100%}}
+/* svg */
+svg text{font-family:var(--sans);fill:var(--fg)}
+.node rect{fill:var(--bg2);stroke:var(--line);stroke-width:2}
+.flow{fill:none;stroke:var(--sky);stroke-width:4;stroke-dasharray:10 10;opacity:0;transition:opacity .4s}
+.flow.on{opacity:1;animation:dash 1s linear infinite}
+.flow.back{stroke:var(--mint)}
+@keyframes dash{to{stroke-dashoffset:-40}}
+.venn circle{fill-opacity:.2;stroke-width:3;transition:opacity .6s}
+.pulse{animation:pulse 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{50%{transform:scale(1.12)}}
+/* combinatorics grid */
+.cgrid{display:grid;grid-template-columns:140px repeat(3,140px);gap:8px;transition:opacity .5s}
+.gh{font:700 21px var(--sans);display:flex;align-items:center;justify-content:center;border-radius:4px;padding:10px 6px;background:var(--bg3);color:var(--fg);transition:background .2s,color .2s}
+.gh.corner{background:transparent;color:var(--mint);font-size:18px;font-family:var(--mono)}
+.gh.rowh{color:var(--sky)} .gh.colh{color:var(--mint)}
+.gh.hot{background:var(--blue);color:#fff}
+.gc{height:92px;border:2px dashed var(--line);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);font-size:20px;gap:2px;transition:all .3s}
+.gc>*{opacity:0;transition:opacity .3s}
+.gc.on{border:2px solid var(--blue);background:rgba(30,77,252,.18)}
+.gc.on>*{opacity:1}
+.gc .t1{color:var(--sky)} .gc .t2{color:var(--mint)} .gc .t3{color:var(--mut);font-size:16px}
+.counter{font-size:30px}
+.counter b{font-size:64px;color:var(--mint);font-weight:800;display:inline-block;min-width:90px}
+/* product grid */
+.pgrid{display:grid;gap:4px}
+.pc{font-family:var(--mono);font-size:16px;background:var(--bg3);border-radius:3px;padding:5px 2px;text-align:center;opacity:0;transform:scale(.6);transition:opacity .3s, transform .3s}
+.pc.on{opacity:1;transform:none}
+.tiny{width:100%;aspect-ratio:1;border-radius:1px;background:var(--blue);opacity:0;transition:opacity .2s, background .2s}
+.tiny.on{opacity:.75}
+.tiny.ok{background:var(--mint);opacity:1}
+.tiny.cur{background:#fff;opacity:1;outline:3px solid var(--mint)}
+.panel{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--mint);border-radius:6px;padding:20px 22px;font-family:var(--mono);font-size:21px;line-height:1.6}
+.panel .lbl{color:var(--mut)}
+/* explosion */
+.xrow{display:grid;grid-template-columns:150px 1fr 260px 230px;align-items:center;gap:20px;font-size:28px;margin:12px 0}
+.xbar{height:30px;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--sky) 60%,var(--red));width:0;transition:width 1s ease}
+/* pairwise */
+.sq{display:grid;grid-template-columns:repeat(9,26px);gap:5px}
+.sq i{width:26px;height:26px;border-radius:2px;background:var(--blue);opacity:0;transition:opacity .2s}
+.sq i.on{opacity:.9}
+table.l9{border-collapse:collapse;font-family:var(--mono);font-size:20px}
+table.l9 td,table.l9 th{padding:6px 12px;border:1px solid var(--line);transition:background .2s,color .2s}
+table.l9 th{color:var(--mut)}
+table.l9 td.hl{color:var(--mint);font-weight:700}
+table.l9 th.hl{color:var(--mint)}
+table.l9 tr.rowhl td.hl{background:var(--blue);color:#fff}
+.mx{display:grid;grid-template-columns:120px repeat(3,104px);gap:6px;font-size:19px}
+.mx div{display:flex;align-items:center;justify-content:center;height:50px;border-radius:3px;background:var(--bg3);font-family:var(--mono);transition:background .2s}
+.mx .h{background:transparent;color:var(--mint);font-weight:700}
+.mx .ok{background:var(--blue);color:#fff;font-size:26px}
+/* order cards */
+.opbox{position:relative;height:110px}
+.op{position:absolute;top:0;width:320px;height:96px;border-radius:6px;display:flex;align-items:center;justify-content:center;font:700 24px var(--mono);border:2px solid;background:var(--bg2);transition:left .7s cubic-bezier(.6,.1,.3,1)}
+.res{position:absolute;left:1070px;top:0;width:350px;height:96px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;transition:all .4s}
+/* interleave */
+.tl{display:flex;gap:10px;min-height:66px;align-items:center}
+.st{width:112px;height:56px;border-radius:4px;display:flex;align-items:center;justify-content:center;font:700 20px var(--mono);border:2px solid;transition:all .4s;background:var(--bg2)}
+.st.A{color:var(--sky);border-color:var(--sky)} .st.B{color:var(--mint);border-color:var(--mint)}
+.ilvl{display:flex;align-items:center;gap:20px;margin-bottom:8px}
+.ilvl>span{width:170px;font-size:24px;font-weight:700}
+.pq{display:flex;align-items:center;gap:0}
+.pqfile{width:300px;background:var(--bg2);border:2px solid var(--line);border-radius:6px;padding:18px;border-top:6px solid var(--sky)}
+.pqf-t{font:700 24px var(--mono);margin-bottom:12px}
+.pqchips{display:flex;flex-wrap:wrap;gap:8px}
+.pqchips span{font:16px var(--mono);padding:4px 9px;border-radius:4px;border:1px solid var(--line);color:var(--mut);transition:all .3s}
+.pqchips span.hot{border-color:var(--red);color:var(--red);font-weight:700;transform:scale(1.08)}
+.pqwires{width:120px;height:260px;flex-shrink:0}
+.pqwires path{fill:none;stroke:var(--line);stroke-width:3;stroke-dasharray:8 8;animation:dash 1s linear infinite}
+.pqlanes{display:flex;flex-direction:column;gap:40px;flex:1}
+.pqlane{display:flex;align-items:center;gap:22px;position:relative}
+.pqr{width:220px;padding:14px 16px;border-radius:6px;border:2px solid var(--sky);background:var(--bg2);font:700 22px var(--sans);transition:all .3s}
+.pqr small{display:block;font:15px var(--mono);color:var(--mut);margin-top:4px;font-weight:400}
+#pqOld .pqr{border-color:var(--mint)}
+.pqout{display:flex;gap:8px}
+.pqout b{width:92px;height:52px;border-radius:5px;display:flex;align-items:center;justify-content:center;font:700 19px var(--mono);background:var(--bg3);border:2px solid var(--line);transition:transform .15s,opacity .15s}
+.pqout b.flip{transform:scale(.85);opacity:.3}
+.pqout b.bad{border-color:var(--red);color:var(--red);background:color-mix(in srgb,var(--red) 14%,var(--bg2))}
+.pqout b.ok{border-color:var(--mint)}
+.pqcrash{position:absolute;left:242px;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;background:var(--red);color:#fff;font:800 24px var(--sans);border-radius:6px;opacity:0;transform:scale(.9);transition:all .3s;pointer-events:none}
+.pqcrash.on{opacity:1;transform:none}
+.pqr.dead{border-color:var(--red);color:var(--red);animation:shake .4s 2}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pqfoot{display:flex;justify-content:space-between;margin-top:26px;font-size:20px}
+.sch{display:grid;grid-template-columns:330px 150px repeat(7,1fr);gap:4px 6px;align-items:center;font-size:19px}
+.sch .dh{font:700 17px var(--sans);color:var(--mut);text-align:center;padding-bottom:4px}
+.sch .vn{font-family:var(--mono);white-space:nowrap;opacity:0;transform:translateX(-14px);transition:all .35s}
+.sch .vn.in{opacity:1;transform:none}
+.sch .ar{font:15px var(--mono);color:var(--mut);opacity:0;transition:opacity .35s}
+.sch .ar.in{opacity:1}
+.sch .dc{height:30px;border-radius:4px;background:var(--bg2);border:1px solid var(--line);position:relative;overflow:hidden}
+.sch .dc.plan{border:1px dashed var(--sky)}
+.sch .dc i{position:absolute;inset:0 auto 0 0;width:0;background:var(--blue);opacity:.55;transition:width .5s linear}
+.sch .dc b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 14px var(--mono);color:#fff;opacity:0;transition:opacity .25s}
+.sch .dc.pass b{opacity:1;background:var(--mint);color:#111} .sch .dc.fail b{opacity:1;background:var(--red)}
+.schhead{position:absolute;top:0;bottom:0;width:3px;background:var(--mint);opacity:0;transition:left .7s linear,opacity .3s;box-shadow:0 0 12px var(--mint)}
+.sc{padding:22px 24px} .sc .sp{font-size:16px;margin:0 0 8px}
+.sc svg{width:100%;height:auto;display:block}
+.sc svg text{font-family:var(--mono);font-size:13px;fill:var(--mut)}
+.scap{font-size:19px;margin-top:8px;line-height:1.35}
+.ilvl .tl{min-height:56px} .ilvl .st{height:48px;font-size:19px}
+.ilvl em{font-style:normal;font-size:20px;margin-left:10px}
+#clu text{font-family:var(--sans);fill:var(--fg)}
+#clu .nm{font-weight:700;font-size:24px} #clu .sub{font-size:18px;fill:var(--mut);font-family:var(--mono)}
+#clu .box{fill:var(--bg2);stroke:var(--line);stroke-width:2;transition:all .4s}
+#clu .nd{transition:opacity .4s}
+#clu .nd.down{opacity:.3} #clu .nd.ok .box{stroke:var(--mint)} #clu .nd.ok .sub{fill:var(--mint)}
+#clu .ln{stroke:var(--line);stroke-width:3;transition:stroke .3s}
+#clu .ln.bad{stroke:var(--red);stroke-dasharray:10 8}
+#clu .flt{fill:var(--red);font:700 19px var(--mono)}
+.ex-ans{border-left:5px solid var(--mint);padding-left:20px}
+.url{font:800 84px var(--sans);color:var(--fg);letter-spacing:-1px}
+.url span{color:var(--blue)}
+.contacts{display:grid;grid-template-columns:auto auto;justify-content:start;gap:6px 28px;font-size:28px;align-items:baseline;margin-top:8px}
+.contacts .mut{font-size:20px;text-transform:uppercase;letter-spacing:2px;font-weight:700}
+.hlbox{position:absolute;border:3px solid var(--mint);border-radius:4px;pointer-events:none}
+.callout{font-size:24px;background:var(--bg2);border-left:5px solid var(--blue);padding:12px 18px;border-radius:4px}
+.callout.mintb{border-left-color:var(--mint)}
+.timeline{display:flex;height:70px;border-radius:4px;overflow:hidden;font:700 19px var(--sans)}
+.timeline div{display:flex;align-items:center;justify-content:center;text-align:center;padding:0 6px;line-height:1.25}
+.steps-list{counter-reset:s;list-style:none;padding:0}
+.steps-list li{counter-increment:s;font-size:32px;margin:14px 0;display:flex;align-items:center;gap:20px}
+.steps-list li::before{content:counter(s);width:46px;height:46px;background:var(--blue);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs><!--LOGO_SYMBOL--></defs></svg>
+
+<div id="stage">
+<svg id="cornerLogo"><use href="#geostqb"/></svg>
+<div id="foot"><b>GeoSTQB</b> · Write one test, break a thousand ways</div>
+<div id="slideNo"></div>
+
+<!-- 1 TITLE -->
+<section class="slide cover" data-anim="title">
+  <canvas id="titleCanvas" width="1600" height="900" style="position:absolute;inset:0"></canvas>
+  <svg style="width:150px;height:150px;position:relative;margin-top:10px"><use href="#geostqb"/></svg>
+  <div style="position:relative;margin-top:auto;margin-bottom:60px">
+    <div class="kicker">Hands-on workshop · 60 min</div>
+    <h1>Write one test,<br><span style="color:var(--sky)">break a thousand ways</span></h1>
+    <p class="mut" style="font-size:36px;margin:0">How we test a distributed database</p>
+  </div>
+  <aside class="notes"><b>0:00 (1 min)</b> Leave this on while people sit down. The animation is the whole talk: one dot (one test) turns into a grid of 1,089 (one test with all its variations), and a few turn red (the bugs only some combinations find).<br>Ask: "Who has written a test before? Who has used SQL? Who has heard of ClickHouse?" The show of hands sets the level.</aside>
+</section>
+
+<!-- 2 AGENDA -->
+<section class="slide">
+  <div class="kicker">The plan</div>
+  <h2>Our hour</h2>
+  <div class="timeline" style="margin:10px 0 40px">
+    <div style="flex:8;background:#1E4DFC;color:#fff">ClickHouse<br>8 min</div>
+    <div style="flex:7;background:#4F72FD;color:#fff">What we test<br>7 min</div>
+    <div style="flex:15;background:#839CFE;color:#111">Combinatorics<br>15 min</div>
+    <div style="flex:15;background:#1EFCD0;color:#111">Hands-on<br>15 min</div>
+    <div style="flex:10;background:#C8D2FF;color:#111">Real suite demo<br>10 min</div>
+    <div style="flex:5;background:#3a3a42;color:#fff">Q&amp;A</div>
+  </div>
+  <div class="row">
+    <div class="card grow" data-step="1"><h3>You'll need</h3><p>A browser. A laptop or a phone. No installs.</p></div>
+    <div class="card grow" data-step="1"><h3>You'll leave with</h3><p>A recipe for turning one test into thousands, and for choosing which thousands.</p></div>
+    <div class="card grow" data-step="1"><h3>Our example</h3><p>ClickHouse, and the open-source test suite run on every ClickHouse build.</p></div>
+  </div>
+  <aside class="notes"><b>0:01 (1 min)</b> Timings are a guide. If the room has no laptops, run the hands-on part yourself: you type, they predict the answers out loud.</aside>
+</section>
+
+<!-- 3 SECTION -->
+<section class="slide section">
+  <div class="dots"></div>
+  <div class="num">01</div>
+  <h1>What is ClickHouse?</h1>
+  <p class="mut">And why is it so fast at analytics?</p>
+  <aside class="notes">Section 1: about 8 minutes. The goal is not to sell ClickHouse. It's for people to understand enough of its design to see why testing it is hard.</aside>
+</section>
+
+<!-- 4 OLTP vs OLAP -->
+<section class="slide">
+  <div class="kicker">ClickHouse in one slide</div>
+  <h2>An open-source, <span class="sky">column-oriented</span> SQL database for analytics</h2>
+  <div class="row">
+    <div class="card grow" data-step="1">
+      <h3>Transactional (OLTP)</h3>
+      <p class="mono" style="font-size:22px;margin-bottom:16px">SELECT * FROM orders<br>WHERE id = 42</p>
+      <p>Finds <b>one row</b> fast. Many small reads and writes.</p>
+      <p class="mut" style="margin-top:8px">PostgreSQL, MySQL</p>
+    </div>
+    <div class="card grow hot" data-step="2">
+      <h3>Analytical (OLAP)</h3>
+      <p class="mono" style="font-size:22px;margin-bottom:16px">SELECT country, avg(price)<br>FROM orders GROUP BY country</p>
+      <p>Reads <b>billions of rows</b>, but only a few columns.</p>
+      <p class="mut" style="margin-top:8px">ClickHouse, BigQuery, Snowflake</p>
+    </div>
+  </div>
+  <p data-step="3" style="margin-top:34px">Used for logs, metrics, events and clickstreams: data that is <b class="mint">written once and read for totals and averages</b>.</p>
+  <aside class="notes">Keep it concrete: "Your bank's app showing your balance is OLTP. The bank's report on average spending per country is OLAP." ClickHouse is built for the second kind of question.</aside>
+</section>
+
+<!-- 5 ROW VS COLUMN -->
+<section class="slide" data-anim="rowcol">
+  <div class="kicker">Why columnar is fast · 1</div>
+  <h2 style="margin-bottom:18px">Read only what the query needs</h2>
+  <div class="row" style="align-items:flex-start">
+    <div>
+      <pre class="code" style="font-size:21px;margin-bottom:16px"><span class="kw">SELECT</span> <span class="fn">avg</span>(price) <span class="kw">FROM</span> sales <span class="kw">WHERE</span> country = <span class="str">'DE'</span></pre>
+      <table class="t" id="rcTable"></table>
+    </div>
+    <div class="grow col" style="padding-top:4px">
+      <div class="legend" id="rcLegend"></div>
+      <div data-step="1">
+        <h3>Row store: whole rows, one after another</h3>
+        <div class="strip" id="rowStrip"></div>
+        <div class="meter" style="margin-top:8px">read <b id="rowCount" class="red">0</b> of 40 values</div>
+      </div>
+      <div data-step="2">
+        <h3>Column store: each column is its own file</h3>
+        <div class="strip" id="colStrip"></div>
+        <div class="meter" style="margin-top:8px">read <b id="colCount" class="mint">0</b> of 40 values</div>
+      </div>
+    </div>
+  </div>
+  <div class="callout mintb" data-step="3" style="margin-top:auto;font-size:28px">1 billion rows × 100 columns, and the query uses 2 of them: a column store reads <b class="mint">2% of the data</b>.</div>
+  <aside class="notes"><b>Key slide.</b> Step 1: a row store has to read every row whole, even the columns we don't use. Step 2: a column store opens only the <i>country</i> and <i>price</i> files. Step 3: at real scale that's reading 2% of the disk instead of 100%.</aside>
+</section>
+
+<!-- 6 COMPRESSION -->
+<section class="slide" data-anim="compress">
+  <div class="kicker">Why columnar is fast · 2</div>
+  <h2>Similar values next to each other compress well</h2>
+  <div class="col" style="gap:34px">
+    <div>
+      <h3 class="mut">The country column, sorted by the table's key</h3>
+      <div class="vals" id="cmpA"></div>
+    </div>
+    <div>
+      <h3 class="mut">The timestamp column: store the difference, not the value</h3>
+      <div class="vals" id="cmpB"></div>
+    </div>
+    <div data-step="3">
+      <h3 class="mut">Then a general compressor (LZ4, ZSTD) on top</h3>
+      <div class="row" style="align-items:center;gap:20px"><span style="width:120px;font-size:22px">raw</span><div class="bar" style="width:900px;background:var(--gray)"></div></div>
+      <div class="row" style="align-items:center;gap:20px;margin-top:10px"><span style="width:120px;font-size:22px">stored</span><div class="bar" id="cmpBar" style="width:900px;background:var(--mint)"></div></div>
+    </div>
+  </div>
+  <p data-step="3" class="mut" style="margin-top:auto">Smaller files mean less to read from disk, and reading from disk is usually the slowest part.</p>
+  <aside class="notes">Step 1: run-length encoding, "DE five times". Step 2: delta encoding, so each timestamp becomes a small number. Step 3: a general compressor on top. Ratios depend on the data. Several times smaller is common for this kind of data, but don't promise a number.</aside>
+</section>
+
+<!-- 7 GRANULES -->
+<section class="slide" data-anim="granules">
+  <div class="kicker">Why columnar is fast · 3</div>
+  <h2>Skip whole blocks you don't need</h2>
+  <pre class="code" style="font-size:22px;margin-bottom:24px"><span class="kw">SELECT</span> <span class="fn">count</span>() <span class="kw">FROM</span> events <span class="kw">WHERE</span> date <span class="kw">BETWEEN</span> <span class="str">'2024-06-01'</span> <span class="kw">AND</span> <span class="str">'2024-06-30'</span></pre>
+  <div class="gran" id="gran"></div>
+  <div class="row" style="margin-top:30px">
+    <p data-step="1" class="grow" style="margin:0">Data is sorted by the key and split into <b>granules</b> of 8,192 rows. A small index stores the <b class="sky">first key of each granule</b>.</p>
+    <p data-step="2" class="grow" style="margin:0">The index shows only <b class="mint">2 granules</b> can match, so ClickHouse reads 16,384 rows instead of 131,072.</p>
+  </div>
+  <aside class="notes">This is the sparse primary index. It's tiny, so it stays in memory, and it lets ClickHouse skip most of the table.</aside>
+</section>
+
+<!-- 8 PARALLEL + DISTRIBUTED -->
+<section class="slide" data-anim="cluster">
+  <div class="kicker">Why columnar is fast · 4</div>
+  <h2>Use every core, then every server</h2>
+  <div class="row" style="align-items:flex-start">
+    <div style="width:540px">
+      <h3>Every CPU core works on a block of values</h3>
+      <div class="lane"><b>core 1</b><span class="blk" style="animation-delay:0s"></span><span class="blk" style="animation-delay:-1.6s"></span></div>
+      <div class="lane"><b>core 2</b><span class="blk" style="animation-delay:-.4s"></span><span class="blk" style="animation-delay:-2s"></span></div>
+      <div class="lane"><b>core 3</b><span class="blk" style="animation-delay:-.8s"></span><span class="blk" style="animation-delay:-2.4s"></span></div>
+      <div class="lane"><b>core 4</b><span class="blk" style="animation-delay:-1.2s"></span><span class="blk" style="animation-delay:-2.8s"></span></div>
+      <p data-step="1" class="mut" style="font-size:24px;margin-top:20px">Click: <span class="sky">→ the query goes out</span>, <span class="mint">← partial results come back</span> and are merged.</p>
+    </div>
+    <div class="grow" data-step="1">
+      <h3>Shards split the data, replicas copy it</h3>
+      <svg viewBox="0 0 860 520" width="860" height="520" id="clusterSvg">
+        <g class="node"><rect x="10" y="225" width="130" height="70" rx="4"/><text x="75" y="267" text-anchor="middle" font-size="22">client</text></g>
+        <g class="node"><rect x="220" y="215" width="170" height="90" rx="4" style="stroke:var(--blue);stroke-width:3"/><text x="305" y="257" text-anchor="middle" font-size="21">node that</text><text x="305" y="284" text-anchor="middle" font-size="21">got the query</text></g>
+        <g class="node">
+          <rect x="560" y="20" width="270" height="140" rx="4" style="fill:none;stroke-dasharray:6 6"/><text x="695" y="48" text-anchor="middle" font-size="20" style="fill:var(--mut)">shard 1</text>
+          <rect x="580" y="62" width="110" height="80" rx="4"/><text x="635" y="108" text-anchor="middle" font-size="18">replica A</text>
+          <rect x="700" y="62" width="110" height="80" rx="4"/><text x="755" y="108" text-anchor="middle" font-size="18">replica B</text>
+          <rect x="560" y="190" width="270" height="140" rx="4" style="fill:none;stroke-dasharray:6 6"/><text x="695" y="218" text-anchor="middle" font-size="20" style="fill:var(--mut)">shard 2</text>
+          <rect x="580" y="232" width="110" height="80" rx="4"/><text x="635" y="278" text-anchor="middle" font-size="18">replica A</text>
+          <rect x="700" y="232" width="110" height="80" rx="4"/><text x="755" y="278" text-anchor="middle" font-size="18">replica B</text>
+          <rect x="560" y="360" width="270" height="140" rx="4" style="fill:none;stroke-dasharray:6 6"/><text x="695" y="388" text-anchor="middle" font-size="20" style="fill:var(--mut)">shard 3</text>
+          <rect x="580" y="402" width="110" height="80" rx="4"/><text x="635" y="448" text-anchor="middle" font-size="18">replica A</text>
+          <rect x="700" y="402" width="110" height="80" rx="4"/><text x="755" y="448" text-anchor="middle" font-size="18">replica B</text>
+        </g>
+        <path class="flow f1" d="M140 260 L220 260"/>
+        <path class="flow f2" d="M390 245 C480 200 500 110 580 102"/>
+        <path class="flow f2" d="M390 260 L580 272"/>
+        <path class="flow f2" d="M390 275 C480 330 500 430 580 442"/>
+        <path class="flow back f3" d="M580 118 C490 130 470 230 392 252"/>
+        <path class="flow back f3" d="M580 288 L392 268"/>
+        <path class="flow back f3" d="M580 458 C490 420 470 300 392 282"/>
+        <path class="flow back f4" d="M220 275 L140 275"/>
+        <text x="440" y="150" font-size="19" class="f3lbl" style="fill:var(--mint);opacity:0;transition:opacity .4s">partial result</text>
+        <text x="16" y="335" font-size="20" class="f4lbl" style="fill:var(--mint);opacity:0;transition:opacity .4s">merged answer</text>
+      </svg>
+    </div>
+  </div>
+  <aside class="notes">Left: each core works on a block of column values at a time, so the CPU stays busy. Right, click through: the query fans out to one replica of each shard, each shard computes a partial result, and the first node merges them.<br><b>Bridge:</b> "Great for speed. Now count the moving parts: shards, replicas, background merges, copying between replicas, a coordination service. That's what makes it hard to test."</aside>
+</section>
+
+<!-- 9 SECTION -->
+<section class="slide section">
+  <div class="dots"></div>
+  <div class="num">02</div>
+  <h1>What do we test, and why?</h1>
+  <aside class="notes">Section 2: about 7 minutes.</aside>
+</section>
+
+<!-- 10 NOT BENCHMARKS -->
+<section class="slide">
+  <div class="kicker">The question we ask</div>
+  <h2>Not "is it fast?" but <span class="sky">"is it right, in every situation?"</span></h2>
+  <div class="row">
+    <div class="card grow" data-step="1" style="border-top-color:var(--gray)">
+      <h3 class="mut">Performance testing</h3>
+      <ul><li>A few tuned queries</li><li>Measures time</li><li>"25% faster than last release"</li></ul>
+    </div>
+    <div class="card grow hot" data-step="2">
+      <h3>Functional regression testing</h3>
+      <ul><li>Every feature, under many conditions</li><li>Checks the <b>result</b>, the <b>error</b>, and the <b>state</b> afterwards</li><li>"Still correct after an ALTER, during a merge, with a replica down"</li></ul>
+    </div>
+  </div>
+  <p data-step="3" style="margin-top:34px">A fast wrong answer is worse than a slow right one, because nobody notices it.</p>
+  <aside class="notes">This is the mindset shift. We don't look for the best query. We look for the situation the developer didn't think of.</aside>
+</section>
+
+<!-- 11 THE SUITE -->
+<section class="slide">
+  <div class="kicker">Our example</div>
+  <h2>The clickhouse-regression suite</h2>
+  <div class="row" style="align-items:flex-start">
+    <div class="col" style="width:400px" data-step="1">
+      <div><div class="big sky">44</div><p class="mut" style="margin:0">test suites</p></div>
+      <div><div class="big">~600k</div><p class="mut" style="margin:0">lines of Python</p></div>
+      <p style="margin:0">Runs on <b>every build</b>, on x86 and ARM</p>
+    </div>
+    <div class="grow" data-step="2" style="display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start">
+      <span class="chip">rbac</span><span class="chip a">s3</span><span class="chip">parquet</span><span class="chip a">iceberg</span><span class="chip">tiered_storage</span><span class="chip b">clickhouse_keeper</span><span class="chip">kafka</span><span class="chip">ldap</span><span class="chip a">kerberos</span><span class="chip">aes_encryption</span><span class="chip b">alter</span><span class="chip">lightweight_delete</span><span class="chip">window_functions</span><span class="chip a">datetime64_extended_range</span><span class="chip">json_data_type</span><span class="chip b">part_moves_between_shards</span><span class="chip">disk_level_encryption</span><span class="chip">ssl_server</span><span class="chip a">jwt_authentication</span><span class="chip">oauth</span><span class="chip b">atomic_insert</span><span class="chip">hive_partitioning</span><span class="chip">aggregate_functions</span><span class="chip a">key_value</span><span class="chip">session_timezone</span><span class="chip">swarms</span><span class="chip b">functions</span><span class="chip">…</span>
+    </div>
+  </div>
+  <p data-step="3" class="mut" style="margin-top:auto;font-size:26px">Python + the <b>TestFlows</b> framework + Docker Compose clusters. Open source: <span class="sky">github.com/Altinity/clickhouse-regression</span></p>
+  <aside class="notes">Each suite starts a real cluster in Docker (ClickHouse nodes, Keeper or ZooKeeper, MinIO, Kafka, LDAP and so on) and runs Python tests against it. Each test is plain Python you can read.</aside>
+</section>
+
+<!-- 11b SCHEDULED CI -->
+<section class="slide" data-anim="sched">
+  <div class="kicker">Every week, on its own</div>
+  <h2 style="margin-bottom:16px">Every test, on 13 versions, every week</h2>
+  <div id="schWrap" style="position:relative">
+    <div id="sch" class="sch"></div>
+    <div id="schHead" class="schhead"></div>
+  </div>
+  <p data-step="2" style="margin-top:14px;font-size:26px"><b class="mint">23 full runs a week</b> (x86 and arm64), each one running every suite. Nobody presses a button. A <b class="red">red</b> badge is where our work starts.</p>
+  <aside class="notes">Source: the README table and .github/workflows/scheduled-*.yml. head runs at 00:00 UTC on Tuesday and Thursday in 4 setups (x86/arm64 × ZooKeeper/Keeper); the other 12 versions run Saturday 22:00 UTC, 15 jobs (three of them also on arm64). 8 + 15 = 23 full regressions a week, each of them the whole suite. Step 1: the versions and the week. Step 2: the playhead runs through the week. Badges match the README on 26 Nov 2026; red ones are not "the test is broken": someone looks at each one and decides whether it is a bug, a flaky test or infrastructure.</aside>
+</section>
+
+<!-- 12 VENN -->
+<section class="slide" data-anim="venn">
+  <div class="kicker">Where bugs hide</div>
+  <h2>Bugs live where features meet</h2>
+  <div class="row" style="align-items:center">
+    <svg viewBox="0 0 700 600" width="660" height="566" class="venn">
+      <circle id="v1" cx="270" cy="230" r="180" style="fill:var(--blue);stroke:var(--blue);opacity:0"/>
+      <circle id="v2" cx="430" cy="230" r="180" style="fill:var(--sky);stroke:var(--sky);opacity:0"/>
+      <circle id="v3" cx="350" cy="370" r="180" style="fill:var(--mint);stroke:var(--mint);opacity:0"/>
+      <text id="t1" x="160" y="140" font-size="28" font-weight="700" text-anchor="middle" style="opacity:0;transition:opacity .5s">Data</text>
+      <text id="t2" x="545" y="140" font-size="28" font-weight="700" text-anchor="middle" style="opacity:0;transition:opacity .5s">Operations</text>
+      <text id="t3" x="350" y="520" font-size="28" font-weight="700" text-anchor="middle" style="opacity:0;transition:opacity .5s">Conditions</text>
+      <g id="vbug" style="opacity:0;transition:opacity .5s"><circle cx="350" cy="280" r="34" class="pulse" style="fill:var(--red);fill-opacity:1;stroke:none"/><text x="350" y="290" font-size="26" text-anchor="middle" style="fill:#fff;font-weight:800">bug</text></g>
+    </svg>
+    <div class="col grow">
+      <p data-step="1" style="margin:0"><b class="blue" style="filter:brightness(1.4)">Data:</b> types, edge values, NULLs, file formats, sizes</p>
+      <p data-step="2" style="margin:0"><b class="sky">Operations:</b> INSERT, ALTER, merges, DELETE, SELECT, export</p>
+      <p data-step="3" style="margin:0"><b class="mint">Conditions:</b> settings, order, concurrency, restarts, network faults</p>
+      <div class="callout" data-step="4" style="border-left-color:var(--red)">Each feature passes its own tests. The bug only shows up when <b>one value</b> meets <b>one operation</b> under <b>one condition</b>.</div>
+    </div>
+  </div>
+  <aside class="notes">Swap in one or two real bugs from your own work here. A real story is the part people remember. Typical shape: "a Nullable column, exported to Parquet, while a merge is running on another replica."</aside>
+</section>
+
+<!-- 13 DIMENSIONS -->
+<section class="slide">
+  <div class="kicker">The "different situations"</div>
+  <h2>What can vary in a database test?</h2>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px">
+    <div class="card" data-step="1"><h3>Data</h3><p>Int8 … UInt256, Float, Decimal, String, Nullable, Array, Map, JSON. Min, max, 0, −1, NaN, empty.</p></div>
+    <div class="card" data-step="1"><h3>Schema</h3><p>Table engines, partition keys, sort keys, codecs, TTL, projections, indexes.</p></div>
+    <div class="card" data-step="2"><h3>Operations</h3><p>INSERT, ALTER (add, drop, rename, update), DELETE, merges, moves, attach, detach.</p></div>
+    <div class="card" data-step="2"><h3>Order &amp; concurrency</h3><p>Which operation comes first? Which ones overlap? Which one wins?</p></div>
+    <div class="card" data-step="3"><h3>Configuration</h3><p>Hundreds of settings, server versions, user privileges, storage policies.</p></div>
+    <div class="card" data-step="3"><h3>Environment</h3><p>Cluster layout, a replica down, network delay, a full disk, S3 or local disk.</p></div>
+  </div>
+  <p data-step="4" style="margin-top:30px">Each card is a list of <b class="sky">variables</b>. Each variable has a list of <b class="mint">values</b>. That's all combinatorics needs.</p>
+  <aside class="notes">Ask the room: "What else could vary?" Take two or three answers. This is how we start a new suite: write the variables on a board.</aside>
+</section>
+
+<!-- 14 SECTION -->
+<section class="slide section">
+  <div class="dots"></div>
+  <div class="num">03</div>
+  <h1>Combinatorics in testing</h1>
+  <p class="mut">One test × all the ways its inputs can combine</p>
+  <aside class="notes">Section 3: about 15 minutes. This is the core of the talk.</aside>
+</section>
+
+<!-- 15 WHAT COMBINATORICS DOES -->
+<section class="slide" data-anim="combo">
+  <div class="kicker">What combinatorics does</div>
+  <h2 style="margin-bottom:20px">Every value meets every other value</h2>
+  <div class="row" style="gap:28px;align-items:center;margin-bottom:22px">
+    <div><span class="mut" style="font-size:20px">type</span><br><span class="chip a">Int</span><span class="chip a">String</span><span class="chip a">Nullable</span></div>
+    <div style="font-size:40px" class="mut">×</div>
+    <div><span class="mut" style="font-size:20px">operation</span><br><span class="chip b">INSERT</span><span class="chip b">ALTER</span><span class="chip b">DELETE</span></div>
+    <div style="font-size:40px" class="mut" data-step="2">×</div>
+    <div data-step="2"><span class="mut" style="font-size:20px">setting</span><br><span class="chip" style="border-color:var(--pale);color:var(--pale)">on</span><span class="chip" style="border-color:var(--pale);color:var(--pale)">off</span></div>
+    <div class="counter" style="margin-left:auto;text-align:right"><b id="comboCount">0</b><br><span class="mut" style="font-size:22px">tests from one test body</span></div>
+  </div>
+  <div class="row" style="gap:50px">
+    <div class="cgrid" id="cg1"></div>
+    <div class="cgrid" id="cg2" style="opacity:0"></div>
+  </div>
+  <div class="row" style="margin-top:auto;align-items:center;gap:30px">
+    <p data-step="3" style="margin:0;font-size:34px;font-weight:800">3 × 3 × 2 = <span class="mint">18</span></p>
+    <pre class="code" data-step="3" style="font-size:21px;flex:1"><span class="kw">for</span> type, operation, setting <span class="kw">in</span> <span class="fn">product</span>(types, operations, settings):
+    <span class="fn">check</span>(type, operation, setting)   <span class="com"># the same test body, every time</span></pre>
+  </div>
+  <aside class="notes"><b>New slide: the core idea, slowly.</b> Step 1: watch each cell light up together with its row and column header. That's a pairing: one type with one operation. 3 × 3 = 9 tests. Step 2: add a third variable with 2 values and the whole grid doubles: 18. Step 3: the formula is just multiplication, and in code it's one loop over <code>product()</code>. Ask: "What happens if I add a fourth variable with 5 values?" (90.)</aside>
+</section>
+
+<!-- 16 PRODUCT -->
+<section class="slide" data-anim="product">
+  <div class="kicker">A real test: a + b</div>
+  <h2 style="margin-bottom:18px">Testing <span class="mono sky">a + b</span> in ClickHouse</h2>
+  <div class="row" style="align-items:flex-start;gap:34px">
+    <div style="width:430px" class="col">
+      <div><span class="mut" style="font-size:20px">sign</span><br><span class="chip a">-</span><span class="chip a">+</span><span class="chip a">""</span></div>
+      <div><span class="mut" style="font-size:20px">value</span><br>
+        <span class="chip b">inf</span><span class="chip b">nan</span><span class="chip b">0.0</span><span class="chip b">0.1</span><span class="chip b">123456.7</span><span class="chip b">101.7654</span><span class="chip b">3.14159…</span><span class="chip b">1.1</span><span class="chip b">1/3</span><span class="chip b">1.79e308</span><span class="chip b">2.22e-308</span></div>
+      <p data-step="1" style="font-size:26px;margin:4px 0 0">sign × value = <b class="sky">3 × 11 = 33</b> numbers for <span class="mono">a</span></p>
+      <p data-step="2" style="font-size:26px;margin:0">the same 33 for <span class="mono">b</span>: <b class="sky">33 × 33 = <span id="pCount">0</span></b> tests</p>
+      <p data-step="3" style="font-size:26px;margin:0">Each square is one test, with its own name and result.</p>
+    </div>
+    <div class="grow" style="position:relative;height:620px">
+      <div id="pLit" class="pgrid" style="grid-template-columns:repeat(11,1fr);position:absolute;inset:0 0 auto 0;transition:opacity .4s"></div>
+      <div id="pAllWrap" style="position:absolute;left:0;top:0;width:560px;opacity:0;transition:opacity .4s">
+        <div class="mut" style="font-size:18px;margin-bottom:6px">columns: <span class="sky">a</span> (33 values) · rows: <span class="mint">b</span> (33 values)</div>
+        <div id="pAll" class="pgrid" style="grid-template-columns:repeat(33,1fr);gap:3px"></div>
+      </div>
+      <div id="pPanel" class="panel" data-step="3" style="position:absolute;left:592px;top:30px;width:330px">
+        <div><span class="lbl">a =</span> <span id="ppA" class="sky"></span></div>
+        <div><span class="lbl">b =</span> <span id="ppB" class="mint"></span></div>
+        <div style="margin-top:10px"><span class="lbl">run:</span><br>SELECT <span id="ppQ"></span></div>
+        <div style="margin-top:10px"><span class="lbl">Python expects:</span><br><span id="ppE"></span></div>
+        <div style="margin-top:10px"><span class="lbl">test</span> <span id="ppN" class="mint">#1</span></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">This is a real test from the suite: functions/tests/plus.py. Step 1: the 33 numbers for <i>a</i>. Step 2: a × b gives 1,089 squares. Step 3: the run. The panel shows what each square means: it builds a query, Python computes the expected answer, and they're compared. It starts slow so people can read it, then speeds up.</aside>
+</section>
+
+<!-- 17 EXPLOSION -->
+<section class="slide" data-anim="explosion">
+  <div class="kicker">The catch</div>
+  <h2>Combinations grow <span class="red">exponentially</span></h2>
+  <div class="xrow mut" style="font-size:21px"><span>variables</span><span>5 values each (log scale)</span><span>combinations</span><span>at 1 test / second</span></div>
+  <div id="xrows"></div>
+  <p data-step="6" style="margin-top:auto">We can't run everything. The skill is choosing <b class="mint">which</b> combinations to run.</p>
+  <aside class="notes">Click through the rows. 12 variables with 5 values each is 244 million tests: almost 8 years at one test per second. A real database has far more than 12 variables.</aside>
+</section>
+
+<!-- 18 TAMING -->
+<section class="slide">
+  <div class="kicker">Keeping it under control</div>
+  <h2>Four ways to choose combinations</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+    <div class="card" data-step="1"><h3>1 · Pick the values well</h3><p>Group values that behave the same and keep one from each group, plus the edges: min, max, 0, −1, NaN, empty, NULL.</p></div>
+    <div class="card" data-step="2"><h3>2 · Pairs instead of everything</h3><p>Cover every <b>pair</b> of values at least once. Far fewer tests, and most bugs need only two factors.</p></div>
+    <div class="card" data-step="3"><h3>3 · Random sample, fixed seed</h3><p><span class="mono">random.seed(42)</span><br><span class="mono">random.sample(all, 3000)</span><br>Different subsets, but any run can be replayed.</p></div>
+    <div class="card" data-step="4"><h3>4 · Go big on demand</h3><p>A small sample on every build. The full set with <span class="mono nowrap">--stress</span> before a release.</p></div>
+  </div>
+  <aside class="notes">All four are used in the suite. #3 and #4 are in the rbac "simple combinatorics" test we'll see later: 446,865 possible sequences, 3,000 sampled per run, all of them with --stress.</aside>
+</section>
+
+<!-- 19 PAIRWISE -->
+<section class="slide" data-anim="pairwise">
+  <div class="kicker">Pairwise testing</div>
+  <h2 style="margin-bottom:22px">81 combinations, or 9 that cover every pair</h2>
+  <div class="row" style="align-items:flex-start;gap:40px">
+    <div class="col" style="width:330px;gap:12px">
+      <p class="mono" style="font-size:19px;margin:0;line-height:1.7">
+        <span class="sky">type</span>: Int, String, Nullable<br>
+        <span class="sky">engine</span>: MergeTree, Replicated, S3<br>
+        <span class="sky">format</span>: Native, Parquet, CSV<br>
+        <span class="sky">setting</span>: on, off, default</p>
+      <div data-step="1"><p style="font-size:24px;margin:6px 0 10px">All of them: 3⁴ = <b class="sky">81</b> tests</p><div class="sq" id="sq81"></div></div>
+    </div>
+    <div data-step="2">
+      <p style="font-size:24px;margin:0 0 10px">Pairwise: <b class="mint">9 tests</b></p>
+      <table class="l9" id="l9"></table>
+    </div>
+    <div data-step="3" class="grow">
+      <p style="font-size:22px;margin:0 0 10px" id="pairTitle">&nbsp;</p>
+      <div class="mx" id="mx"></div>
+      <p id="pairMsg" class="mint" style="font-size:22px;min-height:32px;margin-top:12px;font-weight:700"></p>
+    </div>
+  </div>
+  <p data-step="4" class="mut" style="font-size:23px;margin-top:auto">NIST studies of real software (Kuhn et al.) found that most failures were triggered by 1 or 2 factors, and none needed more than 6.</p>
+  <aside class="notes">Step 3 is the proof: pick any two columns, for example type × engine. As the highlight walks down the 9 rows, each row fills one cell of the 3 × 3 grid on the right. After 9 rows all 9 pairs are covered, for every pair of columns. That's 11% of the tests and still every two-factor bug. TestFlows has this built in (CoveringArray in testflows.combinatorics); PICT is another tool for it.</aside>
+</section>
+
+<!-- 20 ORDER -->
+<section class="slide" data-anim="order">
+  <div class="kicker">Order matters</div>
+  <h2>Same operations, new order, different result</h2>
+  <div class="opbox" id="opbox"></div>
+  <p id="orderLbl" style="font-size:22px;color:var(--mut);margin:8px 0 0">order 1 of 6</p>
+  <div class="row" style="margin-top:28px">
+    <div class="card grow" data-step="2"><h3>3 operations</h3><p>3! = <b>6</b> orders</p></div>
+    <div class="card grow" data-step="3"><h3>Sequences of 4, from 5 options</h3><p>5⁴ = <b>625</b> sequences</p></div>
+    <div class="card grow hot" data-step="4"><h3>A real suite: rbac</h3><p>15 ways to CREATE USER × 31³ ways to ALTER = <b class="mint">446,865</b> sequences. 3,000 sampled per run.</p></div>
+  </div>
+  <aside class="notes">Watch the result box: whenever DELETE runs before INSERT, the row survives; otherwise the table ends up empty. Same operations, different order, different result. The rbac suite creates a user, changes how that user logs in three times, and after every step checks that login works exactly as a model predicts.</aside>
+</section>
+
+<!-- 21 INTERLEAVINGS -->
+<section class="slide" data-anim="interleave">
+  <div class="kicker">Concurrency</div>
+  <h2 style="margin-bottom:22px">Two things at once: you don't choose the order</h2>
+  <div class="ilvl"><span class="sky">thread A</span><div class="tl"><div class="st A">INSERT</div><div class="st A">ALTER</div><div class="st A">SELECT</div></div></div>
+  <div class="ilvl"><span class="mint">thread B</span><div class="tl"><div class="st B">MERGE</div><div class="st B">DELETE</div><div class="st B">SELECT</div></div></div>
+  <div class="ilvl" data-step="1" style="margin-top:10px"><span>what ran</span><div class="tl" id="ilv"></div><em class="mut" id="ilvN"></em></div>
+  <div data-step="2" style="margin-top:22px">
+    <svg id="clu" viewBox="0 0 1420 300" width="1420" height="300">
+      <g id="cluL"></g><g id="cluP"></g><g id="cluN"></g>
+    </svg>
+  </div>
+  <p id="cluCap" data-step="2" style="margin-top:10px;font-size:26px"></p>
+  <aside class="notes">Step 1: the "what ran" line reshuffles; each line is one real possible run (20 for just 3 + 3 steps), and each thread keeps its own order. We can't pick the interleaving, so we shake it. Step 2: the alter stress suite fires random groups of actions at a 3-replica cluster, in parallel. Step 3: tc netem adds delay and packet loss on a link. Step 4: a replica goes down mid-run and comes back. Step 5: everything stops and the oracle is simple: all replicas must hold the same data.</aside>
+</section>
+
+<!-- 22 ORACLE -->
+<section class="slide">
+  <div class="kicker">The hard part</div>
+  <h2 style="margin-bottom:12px">A thousand tests need a thousand right answers</h2>
+  <p class="mut" style="margin:0 0 24px">How does a test know the right answer? That's called the <b style="color:var(--fg)">oracle</b>.</p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+    <div class="card" data-step="1"><h3>Compute it another way</h3><p class="mono" style="font-size:20px">expected = float(a) + float(b)</p><p class="mut" style="font-size:20px;margin-top:8px">plus.py</p></div>
+    <div class="card" data-step="2"><h3>A model</h3><p>Python code that predicts the outcome: "this ALTER must fail with this error".</p><p class="mut" style="font-size:20px;margin-top:8px">rbac … model.py</p></div>
+    <div class="card" data-step="3"><h3>Invariants</h3><p>Rules that must always hold: all replicas return the same rows.</p><p class="mut" style="font-size:20px;margin-top:8px">alter stress</p></div>
+    <div class="card" data-step="4"><h3>Another implementation</h3><p>Files written by other tools (pyarrow, fastparquet) that ClickHouse must read correctly.</p><p class="mut" style="font-size:20px;margin-top:8px">parquet/tests/fastparquet.py</p></div>
+    <div class="card" data-step="5"><h3>Snapshots</h3><p>Save a reviewed output once, and compare against it from then on.</p><p class="mut" style="font-size:20px;margin-top:8px">tests/snapshots/</p></div>
+    <div class="card" data-step="6" style="border-top-color:var(--red)"><h3 class="red">And sometimes…</h3><p>The oracle is wrong, not the database. You'll see that in a minute.</p></div>
+  </div>
+  <aside class="notes">This is the part beginners underestimate. Generating inputs is easy; knowing the right answer for each one is the real work. The hands-on part shows this on purpose.</aside>
+</section>
+
+<!-- 23b REAL BUGS: PARQUET READER V3 -->
+<section class="slide" data-anim="pqbugs">
+  <div class="kicker">Real bugs we found</div>
+  <h2 style="margin-bottom:10px">Same file, two readers: they must agree</h2>
+  <p class="mut" style="margin:0 0 22px;font-size:24px">ClickHouse 25.8 got a new, faster Parquet reader behind one setting. We read every test file with the old reader and the new one, and compared.</p>
+  <div class="pq">
+    <div class="pqfile">
+      <div class="pqf-t">file.parquet</div>
+      <div class="pqchips"><span data-k="bool">Bool</span><span data-k="enum">Enum</span><span>Int32</span><span>String</span><span data-k="bloom">bloom filter</span><span data-k="gzip">gzip</span></div>
+    </div>
+    <svg class="pqwires" viewBox="0 0 120 260" preserveAspectRatio="none"><path d="M0,130 C60,130 60,45 120,45"/><path d="M0,130 C60,130 60,215 120,215"/></svg>
+    <div class="pqlanes">
+      <div class="pqlane" id="pqOld"><div class="pqr">old reader<small>the oracle</small></div><div class="pqout"></div></div>
+      <div class="pqlane" id="pqNew"><div class="pqr">new reader v3<small>setting = 1</small></div><div class="pqout"></div><div class="pqcrash">Segmentation fault: the server crashed</div></div>
+    </div>
+  </div>
+  <div class="pqfoot"><span id="pqRun" class="mono mut"></span><span id="pqTag" class="mono"></span></div>
+  <p id="pqCap" style="margin-top:6px;font-size:26px"></p>
+  <aside class="notes">Two of the five bugs we filed in two days (22–23 Sep 2025, ClickHouse 25.8.4) when we turned the new reader on. Step 1, #87412: run the same SELECT on the same file again and again; the old reader always gives the same Bool values, the new one gives different ones each run. Fixed in PR #87442; the maintainer first thought it was already fixed. Step 2, #87509: one particular file, a Bool column with a bloom filter in a gzip file, crashes the whole server with a segmentation fault. Step 3: nobody wrote a test for "Bool + bloom filter + gzip + new reader". The test was "every file, both readers, compare". The other three: a type change for Decimal and for DateTime64, and an error reading back a file ClickHouse wrote itself. Links in workshop/BUG_STORIES.md.</aside>
+</section>
+
+<!-- 23 SECTION HANDS ON -->
+<section class="slide section">
+  <div class="dots"></div>
+  <div class="num">04</div>
+  <h1>Your turn</h1>
+  <div class="url" style="margin:6px 0 26px">fiddle<span>.</span>clickhouse<span>.</span>com</div>
+  <ol class="steps-list" style="margin:0">
+    <li><span>Open the link: a ClickHouse in your browser, no sign-up</span></li>
+    <li><span>Paste the query from the slide</span></li>
+    <li><span><b>Predict the result first</b>, then press Run</span></li>
+  </ol>
+  <aside class="notes">Section 4: about 15 minutes. For each exercise: show the query, ask the room to <b>predict</b> the result out loud or on paper, then run it. Predicting first is what makes the surprises land. Phones work; otherwise pair people up. If nobody has a device, you type and they shout guesses.</aside>
+</section>
+
+<!-- 24 EX1 -->
+<section class="slide">
+  <div class="kicker">Exercise 1 · one test</div>
+  <h2>What does this return?</h2>
+  <pre class="code"><span class="kw">SELECT</span> <span class="fn">toUInt8</span>(<span class="num">200</span>) + <span class="fn">toUInt8</span>(<span class="num">100</span>) <span class="kw">AS</span> result,
+       <span class="fn">toTypeName</span>(result) <span class="kw">AS</span> type</pre>
+  <p data-step="1" style="font-size:36px;margin-top:30px">UInt8 holds 0 to 255. So is it <b class="sky">44</b>? <b class="sky">300</b>? An <b class="sky">error</b>?</p>
+  <div data-step="2" class="ex-ans" style="margin-top:10px">
+    <table class="t" style="font-size:26px;margin-bottom:12px"><tr><th>result</th><th>type</th></tr><tr><td>300</td><td>UInt16</td></tr></table>
+    <p style="margin:0">ClickHouse widens the type when adding: UInt8 + UInt8 gives UInt16.<br><b class="mint">One test, one fact.</b> Does it hold for every type?</p>
+  </div>
+  <aside class="notes">Most people guess 44 (wrap-around) or an error. It's 300, because ClickHouse widens small integer types. The obvious next question, "does that hold for every type?", is where one test becomes many.</aside>
+</section>
+
+<!-- 25 VALUES EXPLAINED -->
+<section class="slide" data-anim="values">
+  <div class="kicker">Before exercise 2 · the tool</div>
+  <h2 style="margin-bottom:18px">values() builds a table, a comma combines tables</h2>
+  <pre class="code" style="font-size:24px"><span class="kw">SELECT</span> a, b, a + b <span class="kw">AS</span> result
+<span class="kw">FROM</span> <span class="cv" id="cvA"><span class="fn">values</span>(<span class="str">'a UInt8'</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">127</span>, <span class="num">255</span>) <span class="kw">AS</span> A</span><span class="cv" id="cvC">,</span>
+     <span class="cv" id="cvB"><span class="fn">values</span>(<span class="str">'b UInt8'</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">127</span>, <span class="num">255</span>) <span class="kw">AS</span> B</span></pre>
+  <div class="row" style="margin-top:26px;gap:30px;align-items:flex-start">
+    <div data-step="1" style="width:250px">
+      <p style="font-size:20px;margin:0 0 8px" class="mut"><span class="mono" style="color:var(--fg)">'a UInt8'</span>: column name and type.<br>Then the rows.</p>
+      <table class="t" id="vtA"></table>
+    </div>
+    <div data-step="2" style="width:150px">
+      <p style="font-size:20px;margin:0 0 8px" class="mut">Same for B.<br>&nbsp;</p>
+      <table class="t" id="vtB"></table>
+    </div>
+    <div data-step="3" class="row" style="gap:24px;align-items:flex-start">
+      <div style="font-size:50px;color:var(--mint);margin-top:70px">→</div>
+      <div><p style="font-size:20px;margin:0 0 8px" class="mut">A, B: every row of A<br>with every row of B</p><table class="t" id="vtR1"></table></div>
+      <div><p style="font-size:20px;margin:0 0 8px">&nbsp;<br>&nbsp;</p><table class="t" id="vtR2"></table></div>
+    </div>
+  </div>
+  <p data-step="4" style="margin-top:auto;font-size:28px">The comma is a <b class="mint">CROSS JOIN</b>: 4 × 4 = 16 rows. That's <span class="mono">itertools.product()</span> in SQL.</p>
+  <aside class="notes"><b>New slide: explains the trick the exercises rely on.</b> Step 1: <code>values('a UInt8', 0, 1, 127, 255)</code> is an inline table: one column called <i>a</i>, of type UInt8, with 4 rows. Step 2: the same for B. Step 3: watch each pair light up: row of A, row of B, one result row. Step 4: the comma between two tables means "every row with every row". This is the grid from slide 16, built in SQL.</aside>
+</section>
+
+<!-- 26 EX2 -->
+<section class="slide">
+  <div class="kicker">Exercise 2 · one test, many inputs</div>
+  <h2>Your turn: run it, then grow it</h2>
+  <pre class="code"><span class="kw">SELECT</span> a, b, a + b <span class="kw">AS</span> result, <span class="fn">toTypeName</span>(result) <span class="kw">AS</span> type
+<span class="kw">FROM</span> <span class="fn">values</span>(<span class="str">'a UInt8'</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">127</span>, <span class="num">255</span>) <span class="kw">AS</span> A,
+     <span class="fn">values</span>(<span class="str">'b UInt8'</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">127</span>, <span class="num">255</span>) <span class="kw">AS</span> B</pre>
+  <div class="row" style="margin-top:30px">
+    <div class="card grow" data-step="1"><h3>Run it</h3><p><b>16 rows</b>, one test case each. Is the type UInt16 in every row?</p></div>
+    <div class="card grow" data-step="2"><h3>Add a value</h3><p>Add <span class="mono">200</span> to both lists. How many rows now? <span class="mut">(5 × 5 = 25)</span></p></div>
+    <div class="card grow" data-step="3"><h3>Add a variable</h3><p>Add a third table, <span class="mono" style="font-size:22px">values('c UInt8', 1, 2) AS C</span>, and select <span class="mono">a + b + c</span>. How many rows? Which type? <span class="mut">(50, UInt32)</span></p></div>
+  </div>
+  <aside class="notes">Point at the row count in fiddle. One more value in each list: 16 becomes 25. A third list multiplies it again. Combinatorics you can see.</aside>
+</section>
+
+<!-- 27 EX3 -->
+<section class="slide">
+  <div class="kicker">Exercise 3 · add an oracle</div>
+  <h2 style="margin-bottom:20px">Let the query check its own answers</h2>
+  <pre class="code" style="font-size:21px"><span class="kw">SELECT</span> a, b,
+       a + b <span class="kw">AS</span> ch,                                   <span class="com">-- what ClickHouse says</span>
+       <span class="fn">toUInt256</span>(a) + <span class="fn">toUInt256</span>(b) <span class="kw">AS</span> expected,       <span class="com">-- the oracle: a type that can't overflow</span>
+       ch = expected <span class="kw">AS</span> ok
+<span class="kw">FROM</span> <span class="fn">values</span>(<span class="str">'a UInt64'</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">18446744073709551615</span>) <span class="kw">AS</span> A,
+     <span class="fn">values</span>(<span class="str">'b UInt64'</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">18446744073709551615</span>) <span class="kw">AS</span> B</pre>
+  <div class="row" style="margin-top:20px;gap:40px;align-items:flex-start">
+    <div data-step="1">
+      <table class="t" style="font-size:19px">
+        <tr><th>a</th><th>b</th><th>ch</th><th>expected</th><th>ok</th></tr>
+        <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+        <tr><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+        <tr><td>0</td><td>max</td><td>max</td><td>max</td><td>1</td></tr>
+        <tr><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+        <tr><td>1</td><td>1</td><td>2</td><td>2</td><td>1</td></tr>
+        <tr class="bad"><td>1</td><td>max</td><td>0</td><td>max + 1</td><td>0</td></tr>
+        <tr><td>max</td><td>0</td><td>max</td><td>max</td><td>1</td></tr>
+        <tr class="bad"><td>max</td><td>1</td><td>0</td><td>max + 1</td><td>0</td></tr>
+        <tr class="bad"><td>max</td><td>max</td><td>max − 1</td><td>2 × max</td><td>0</td></tr>
+      </table>
+      <p class="mut" style="font-size:17px;margin:6px 0 0">max = 18446744073709551615, the largest UInt64</p>
+    </div>
+    <div class="col grow" style="gap:14px">
+      <p data-step="1" style="margin:0"><b class="red">3 of 9 rows fail.</b> UInt64 doesn't widen; <span class="mono">max + 1</span> wraps around to <span class="mono">0</span>.</p>
+      <p data-step="2" style="margin:0;font-size:34px;font-weight:800" class="sky">Is that a bug? Who decides?</p>
+      <p data-step="3" style="margin:0">It's documented behaviour, so <b>the oracle was wrong</b>. The spec decides what "correct" means, not the test.</p>
+    </div>
+  </div>
+  <aside class="notes">Exercise 1 suggested "adding widens the type". The combination with the largest type breaks that rule, and only the max value meeting the max type shows it. In the real suite we'd mark this as expected behaviour and keep the test, so we notice if it ever changes.</aside>
+</section>
+
+<!-- 28 EX4 -->
+<section class="slide">
+  <div class="kicker">Exercise 4 · when "equal" gets hard</div>
+  <h2 style="margin-bottom:20px">Floats: what does "equal" mean?</h2>
+  <pre class="code"><span class="kw">SELECT</span> a, b, a + b <span class="kw">AS</span> ch,
+       ch = ch <span class="kw">AS</span> equals_itself
+<span class="kw">FROM</span> <span class="fn">values</span>(<span class="str">'a Float64'</span>, -inf, nan, -<span class="num">0.</span>, <span class="num">0.1</span>, inf) <span class="kw">AS</span> A,
+     <span class="fn">values</span>(<span class="str">'b Float64'</span>, -inf, nan, <span class="num">0.</span>, <span class="num">0.2</span>, inf) <span class="kw">AS</span> B</pre>
+  <div class="row" style="margin-top:22px;gap:40px;align-items:flex-start">
+    <table class="t" data-step="1" style="font-size:21px">
+      <tr><th>a</th><th>b</th><th>ch</th><th>equals_itself</th></tr>
+      <tr><td>-inf</td><td>inf</td><td>nan</td><td class="red">0</td></tr>
+      <tr><td>nan</td><td>0.2</td><td>nan</td><td class="red">0</td></tr>
+      <tr><td>0.1</td><td>0.2</td><td>0.30000000000000004</td><td>1</td></tr>
+      <tr><td>-0</td><td>0</td><td>0</td><td>1</td></tr>
+    </table>
+    <div class="col grow" style="gap:14px">
+      <p data-step="1" style="margin:0"><span class="mono">inf + -inf</span> is <span class="mono">nan</span>, and <span class="mono">0.1 + 0.2</span> isn't exactly <span class="mono">0.3</span>.</p>
+      <p data-step="2" style="margin:0"><b class="red">nan = nan is false.</b> An oracle that uses <span class="mono">=</span> marks correct results as failures.</p>
+      <p data-step="3" class="mut" style="margin:0">That's why plus.py compares <span class="mono">str(float(…))</span>: the test needs its own definition of "same".</p>
+    </div>
+  </div>
+  <aside class="notes">This is IEEE 754 floating point, not a ClickHouse quirk. The table shows 4 of the 25 rows. Special values (NaN, −0, inf) break naive checks, so the oracle needs special cases, just like the database does.</aside>
+</section>
+
+<!-- 29 EX5 -->
+<section class="slide">
+  <div class="kicker">Exercise 5 · find the crash</div>
+  <h2>One bad combination ruins the whole batch</h2>
+  <pre class="code"><span class="kw">SELECT</span> a, b, <span class="fn">intDiv</span>(a, b) <span class="kw">AS</span> result
+<span class="kw">FROM</span> <span class="fn">values</span>(<span class="str">'a Int64'</span>, <span class="num">-9223372036854775808</span>, <span class="num">0</span>, <span class="num">7</span>) <span class="kw">AS</span> A,
+     <span class="fn">values</span>(<span class="str">'b Int64'</span>, <span class="num">-1</span>, <span class="num">2</span>) <span class="kw">AS</span> B</pre>
+  <div data-step="1" class="ex-ans" style="margin-top:24px;border-left-color:var(--red)">
+    <p class="mono" style="font-size:22px;margin:0;color:var(--red)">Code: 153. DB::Exception: Division of minimal signed number by minus one</p>
+    <p style="margin:8px 0 0">The smallest Int64 divided by −1 doesn't fit in Int64. One case out of six, and you get <b>no rows at all</b>.</p>
+  </div>
+  <p data-step="2" style="margin:22px 0 0">Try it: remove values until the query works. That's finding the culprit by hand.</p>
+  <p data-step="3" style="margin:12px 0 0">The fix: run every combination as <b class="mint">its own test</b>. One fails, 1,088 still report. The framework does that for us.</p>
+  <aside class="notes">This is why we need a framework. In SQL the whole query fails; in TestFlows each combination is a separate scenario with its own name, result and log. Good bridge into the demo.</aside>
+</section>
+
+<!-- 30 SECTION DEMO -->
+<section class="slide section">
+  <div class="dots"></div>
+  <div class="num">05</div>
+  <h1>The real thing</h1>
+  <p class="mut">One test from the suite, and how it becomes 1,089</p>
+  <aside class="notes">Section 5: about 10 minutes. Start the run now, before you talk through the code, so the output is ready when you switch to the terminal.</aside>
+</section>
+
+<!-- 31 CODE -->
+<section class="slide" data-anim="code">
+  <div class="kicker">functions/tests/plus.py</div>
+  <div class="row" style="align-items:flex-start;margin-top:10px">
+  <div style="position:relative">
+  <pre class="code" id="plusCode" style="font-size:22px;line-height:1.5"><span class="fn">@TestSketch</span>(Scenario)
+<span class="kw">def</span> <span class="fn">floats</span>(self, client=<span class="kw">None</span>):
+    <span class="com">"""Check addition of floats using plus()"""</span>
+    sign = [<span class="str">"-"</span>, <span class="str">"+"</span>, <span class="str">""</span>]
+    value = [<span class="str">"inf"</span>, <span class="str">"nan"</span>, <span class="str">"0.0"</span>, <span class="str">"0.1"</span>, <span class="com">... 11 values</span>]
+
+    a = <span class="fn">either</span>(*sign, i=<span class="str">"sign"</span>) + <span class="fn">either</span>(*value, i=<span class="str">"value"</span>)
+    b = <span class="fn">either</span>(*sign, i=<span class="str">"sign"</span>) + <span class="fn">either</span>(*value, i=<span class="str">"value"</span>)
+
+    expected = <span class="fn">float</span>(a) + <span class="fn">float</span>(b)
+    r = client.<span class="fn">query</span>(<span class="str">f"SELECT </span>{a}<span class="str"> + </span>{b}<span class="str">"</span>).output
+    <span class="kw">assert</span> <span class="fn">str</span>(<span class="fn">float</span>(r[<span class="num">0</span>][<span class="num">0</span>])) == <span class="fn">str</span>(expected)</pre>
+  <div class="hlbox" id="hl" style="opacity:0;transition:all .45s"></div>
+  </div>
+  <div class="col grow" style="padding-top:4px;gap:14px">
+    <div class="callout" data-step="1"><b>@TestSketch</b>: write the test once. The framework runs it for every combination.</div>
+    <div class="callout" data-step="2"><b>either()</b> marks a variable, like the chips on slide 17. Each run takes one of its values.</div>
+    <div class="callout" data-step="3"><b>The oracle</b>: Python computes the expected answer, like <span class="mono">expected</span> in exercise 3.</div>
+    <div class="callout" data-step="4"><b>The check</b>: compared as strings, so <span class="mono">nan</span> equals <span class="mono">nan</span> (exercise 4).</div>
+    <div class="callout mintb" data-step="5"><b>About 10 lines → 1,089 tests</b>, each with its own name, pass/fail and log (exercise 5).</div>
+  </div>
+  </div>
+  <aside class="notes">Lines are trimmed slightly to fit; the file is about 30 lines. Tie each part back to the exercises: either() is the values() list, expected is the oracle column, str(float()) handles nan, and separate scenarios fix the "one crash kills everything" problem.</aside>
+</section>
+
+<!-- 32 RUN -->
+<section class="slide">
+  <div class="kicker">Live demo</div>
+  <h2>Running it</h2>
+  <pre class="code" style="font-size:22px"><span class="com"># starts a ClickHouse cluster in Docker and runs only the plus test</span>
+cd functions
+./regression.py --local \
+    --clickhouse docker://altinity/clickhouse-server:25.8.14.20001.altinityantalya \
+    --only <span class="str">"/functions/plus/*"</span></pre>
+  <div class="row" style="margin-top:30px">
+    <div class="card grow" data-step="1"><h3>Watch for</h3><p>One scenario name per combination: <span class="mono" style="font-size:22px">sign='-', value='nan', …</span></p></div>
+    <div class="card grow" data-step="2"><h3>Then break it</h3><p>Add the largest UInt64, <span class="mono" style="font-size:22px">"18446744073709551615"</span>, and run again: 1,089 tests become 1,296, and <b class="red">4 fail</b>.</p></div>
+    <div class="card grow" data-step="3"><h3>Then ask</h3><p>What other variable would you add? A type? A setting?</p></div>
+  </div>
+  <aside class="notes">Pull the Docker image the day before; venue Wi-Fi won't be fast. Keep a recorded terminal run as a backup. The second card makes a nice live moment: one line changes, the count jumps from 1,089 to 1,296 (36 × 36), and 4 tests go red. Each is max + max: ClickHouse keeps the UInt64 type and wraps around to 18446744073709551614, while Python's float oracle expects 3.7e19. Same lesson as exercise 3: the spec decides who is right. (Don't use a negative number like "-0.0": the sign list would turn it into "--0.0", which SQL reads as a comment.)</aside>
+</section>
+
+<!-- 33 SCALING -->
+<section class="slide" data-anim="scale">
+  <div class="kicker">The same idea, scaled up</div>
+  <h2>Three suites, three kinds of combinatorics</h2>
+  <div class="row" style="gap:28px">
+    <div class="card grow sc" data-step="1">
+      <h3>Sequences</h3>
+      <p class="mono mut sp">rbac/…/simple_combinatorics</p>
+      <svg id="scSeq" viewBox="0 0 390 300"></svg>
+      <p class="scap">sample <b class="mint" id="scSeqN">0</b> of 446,865<br>a <b class="mint">model</b> checks each login</p>
+    </div>
+    <div class="card grow sc" data-step="2">
+      <h3>Concurrency</h3>
+      <p class="mono mut sp">alter/stress</p>
+      <svg id="scCon" viewBox="0 0 390 300"></svg>
+      <p class="scap" id="scConC">actions overlap, faults hit<br>check: <b class="mint">replicas agree</b></p>
+    </div>
+    <div class="card grow sc" data-step="3">
+      <h3>Generated data</h3>
+      <p class="mono mut sp">parquet/data/test_file_generators.py</p>
+      <svg id="scDat" viewBox="0 0 390 300"></svg>
+      <p class="scap">15 types × 5 shapes × 6 codecs<br>ClickHouse <b class="mint">reads each back</b></p>
+    </div>
+  </div>
+  <aside class="notes">Three animations, one idea: the same small test multiplied. Left: rbac builds every sequence CREATE → ALTER → ALTER → ALTER (446,865 of them) and samples 3,000 with a fixed seed; each line is one sampled sequence, and a model predicts whether login works after every step. Middle: alter/stress throws random groups of ALTER actions at the cluster at the same time, with network faults and replica restarts in between; at the end all replicas must agree. Right: the Parquet generator writes every type in 5 shapes (plain, list, list of struct, list of map, map) with 6 compression codecs, and ClickHouse must read every file. If time allows, open alter/stress/tests/stress_alter.py, build_action_groups: combinations(actions, 3, with_replacement=True), a shuffle, take the first few.</aside>
+</section>
+
+<!-- 34 RECIPE -->
+<section class="slide">
+  <div class="kicker">Take this home</div>
+  <h2>The recipe</h2>
+  <ol class="steps-list" style="margin:0">
+    <li data-step="1"><span>Write <b>one</b> test that works for one case.</span></li>
+    <li data-step="2"><span>Find its <b>variables</b>: data, schema, operations, order, configuration, environment.</span></li>
+    <li data-step="3"><span>Pick the <b>values</b>: one from each group, plus every edge case.</span></li>
+    <li data-step="4"><span><b>Combine</b> them: every combination, pairs, or a seeded sample.</span></li>
+    <li data-step="5"><span>Decide the <b>oracle</b> before you trust a single result.</span></li>
+    <li data-step="6"><span>Run in <b>parallel</b>, <b>repeat</b>, add faults, and keep the seed so you can replay.</span></li>
+  </ol>
+  <aside class="notes">Nothing here is specific to ClickHouse. The same recipe works for an API, a form, a compiler or a payment flow.</aside>
+</section>
+
+<!-- 35 THANKS -->
+<section class="slide section cover" data-anim="title2">
+  <canvas id="endCanvas" width="1600" height="900" style="position:absolute;inset:0"></canvas>
+  <div style="position:relative">
+    <svg style="width:130px;height:130px;margin-bottom:30px"><use href="#geostqb"/></svg>
+    <h1>Questions?</h1>
+    <div class="contacts">
+      <span class="mut">GeoSTQB</span><span><b>geostqb.org</b></span>
+      <span></span><span>geostqb@gmail.com</span>
+      <span></span><span>facebook.com/geostqb</span>
+      <span class="mut">Speaker</span><span>davit.mnatobishvili.1@gmail.com</span>
+      <span class="mut">The suite</span><span class="sky">github.com/Altinity/clickhouse-regression</span>
+    </div>
+  </div>
+  <aside class="notes">Keep about 5 minutes for questions. Common ones: "How long does the whole suite take?" "Who writes the oracles?" "Do you use AI to generate tests?" Have short answers ready.</aside>
+</section>
+
+</div>
+<div id="progress"></div>
+<div id="help">→ next · ← back · N notes · T light/dark · F fullscreen</div>
+<div id="notes"></div>
+
+<script>
+(() => {
+const stage = document.getElementById('stage');
+const slides = [...document.querySelectorAll('.slide')];
+const notesEl = document.getElementById('notes');
+let cur = 0, step = 0;
+
+function fit(){ const s = Math.min(innerWidth/1600, innerHeight/900); stage.style.transform = `translate(-50%,-50%) scale(${s})`; }
+addEventListener('resize', fit); fit();
+setTimeout(()=>{ document.getElementById('help').style.opacity = 0; }, 6000);
+
+/* ---------- timers: everything is cancelled on every slide/step change ---------- */
+const timers = new Set();
+function later(fn, ms){ const id = setTimeout(()=>{timers.delete(id); fn();}, ms); timers.add(id); return id; }
+function every(fn, ms){ const id = setInterval(fn, ms); timers.add(id); return id; }
+function clearTimers(){ timers.forEach(id => {clearTimeout(id); clearInterval(id);}); timers.clear(); }
+let raf = null; function stopRaf(){ if(raf) cancelAnimationFrame(raf); raf = null; }
+const css = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+const $ = id => document.getElementById(id);
+
+const anims = {};
+
+/* ---------- title: one dot becomes 1,089 ---------- */
+function dotsCanvas(canvas){
+  const ctx = canvas.getContext('2d'); const N = 33, W = 1600, H = 900;
+  const cell = 16, gx = W - N*cell - 90, gy = (H - N*cell)/2;
+  const pts = []; for(let i=0;i<N*N;i++){ pts.push({tx: gx + (i%N)*cell, ty: gy + Math.floor(i/N)*cell, bug: Math.random() < 0.012}); }
+  const t0 = performance.now(), cx = gx + N*cell/2, cy = H/2;
+  function frame(t){
+    const e = ((t - t0) / 1000) % 10; ctx.clearRect(0,0,W,H);
+    const c = css('--blue'), r = css('--red');
+    if(e < 1.2){ ctx.fillStyle = c; ctx.fillRect(cx-8, cy-8, 16 + 4*Math.sin(e*8), 16 + 4*Math.sin(e*8)); }
+    else {
+      const p = Math.min(1, (e-1.2)/2.2), ease = 1 - Math.pow(1-p, 3);
+      for(const d of pts){
+        const x = cx + (d.tx - cx)*ease, y = cy + (d.ty - cy)*ease;
+        const isBug = d.bug && e > 4;
+        ctx.fillStyle = isBug ? r : c;
+        const s = isBug ? 9 + 2*Math.sin(t/180) : 7;
+        ctx.fillRect(x - s/2, y - s/2, s, s);
+      }
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+}
+anims.title = { steps:0, enter(){ dotsCanvas($('titleCanvas')); } };
+anims.title2 = { steps:0, enter(){ dotsCanvas($('endCanvas')); } };
+
+/* ---------- row vs column ---------- */
+const rcCols = ['date','user_id','country','device','price'];
+const rcRows = [['06-01','17','DE','ios','12.0'],['06-01','42','FR','web','8.5'],['06-02','17','DE','web','30.0'],['06-02','93','US','android','4.2'],['06-03','42','FR','ios','9.9'],['06-03','11','DE','web','15.0'],['06-04','93','US','web','7.1'],['06-04','64','DE','android','22.4']];
+(function(){
+  $('rcTable').innerHTML = '<tr>' + rcCols.map((c,i)=>`<th style="color:var(--c${i+1})">${c}</th>`).join('') + '</tr>' + rcRows.map(r => '<tr>' + r.map(v=>`<td>${v}</td>`).join('') + '</tr>').join('');
+  $('rcLegend').innerHTML = rcCols.map((c,i)=>`<span><i class="k${i+1}"></i>${c}</span>`).join('');
+  const rs = $('rowStrip'), cs = $('colStrip');
+  const cell = (ci, parent) => { const d = document.createElement('i'); d.className = `cell k${ci+1}`; d.dataset.col = ci; parent.appendChild(d); };
+  const blk = parent => { const b = document.createElement('div'); b.className = 'run'; parent.appendChild(b); return b; };
+  rcRows.forEach(r => { const b = blk(rs); r.forEach((_,ci) => cell(ci, b)); });
+  rcCols.forEach((c,ci) => { const f = document.createElement('span'); f.className = 'fname'; f.textContent = c + '.bin'; cs.appendChild(f); const b = blk(cs); rcRows.forEach(() => cell(ci, b)); });
+})();
+function scan(cells, counter, ms){
+  cells.forEach(c => c.classList.remove('read')); counter.textContent = '0';
+  cells.forEach((c,i) => later(() => { c.classList.add('read'); counter.textContent = i+1; }, 200 + i*ms));
+}
+anims.rowcol = { steps:3, render(s){
+  const rc = [...document.querySelectorAll('#rowStrip .cell')], cc = [...document.querySelectorAll('#colStrip .cell')];
+  const used = c => c.dataset.col==2 || c.dataset.col==4;
+  rc.concat(cc).forEach(c=>c.classList.remove('read'));
+  if(s === 1) scan(rc, $('rowCount'), 55);
+  if(s >= 2){ rc.forEach(c=>c.classList.add('read')); $('rowCount').textContent = 40; }
+  if(s === 2) scan(cc.filter(used), $('colCount'), 90);
+  if(s === 3){ cc.forEach(c => c.classList.toggle('read', used(c))); $('colCount').textContent = 16; }
+}};
+
+/* ---------- compression ---------- */
+anims.compress = { steps:3, render(s){
+  const raw = ['DE','DE','DE','DE','DE','FR','FR','FR','US','US','US','US'];
+  const ts = [1732521600,1732521601,1732521603,1732521604,1732521604,1732521607,1732521609];
+  $('cmpA').innerHTML = s >= 1 ? [['DE',5],['FR',3],['US',4]].map(([v,n])=>`<span class="v z">${v} × ${n}</span>`).join('') + '<span class="v" style="border:0;background:none;color:var(--mut)">12 values → 3</span>' : raw.map(v=>`<span class="v">${v}</span>`).join('');
+  $('cmpB').innerHTML = s >= 2 ? ts.map((v,i)=> i===0 ? `<span class="v">${v}</span>` : `<span class="v z">+${v-ts[i-1]}</span>`).join('') + '<span class="v" style="border:0;background:none;color:var(--mut)">10 digits → 1</span>' : ts.map(v=>`<span class="v">${v}</span>`).join('');
+  const bar = $('cmpBar'); bar.style.width = '900px';
+  if(s >= 3) later(()=>{ bar.style.width = '130px'; }, 300);
+}};
+
+/* ---------- granules ---------- */
+(function(){
+  const months = ['2023-11','2023-12','2024-01','2024-02','2024-03','2024-03','2024-04','2024-05','2024-06','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12'];
+  $('gran').innerHTML = months.map((m,i)=>`<div class="g" data-i="${i}"><div class="mk">${m}-${String((i*7)%27+1).padStart(2,'0')}</div><div style="font-size:15px;color:var(--mut)">granule ${i}</div></div>`).join('');
+})();
+anims.granules = { steps:2, render(s){
+  document.querySelectorAll('#gran .g').forEach(el => {
+    const i = +el.dataset.i, hit = i === 8 || i === 9;
+    el.classList.toggle('idx', s >= 1);
+    el.classList.toggle('skip', s >= 2 && !hit);
+    el.classList.toggle('hit', s >= 2 && hit);
+  });
+}};
+
+/* ---------- cluster ---------- */
+anims.cluster = { steps:4, render(s){
+  const sv = $('clusterSvg');
+  sv.querySelectorAll('.f1').forEach(p=>p.classList.toggle('on', s>=1 && s<4));
+  sv.querySelectorAll('.f2').forEach(p=>p.classList.toggle('on', s===2));
+  sv.querySelectorAll('.f3').forEach(p=>p.classList.toggle('on', s===3));
+  sv.querySelectorAll('.f4').forEach(p=>p.classList.toggle('on', s>=4));
+  sv.querySelector('.f3lbl').style.opacity = s===3 ? 1 : 0;
+  sv.querySelector('.f4lbl').style.opacity = s>=4 ? 1 : 0;
+}};
+
+/* ---------- venn ---------- */
+anims.venn = { steps:4, render(s){
+  [1,2,3].forEach(i => { $('v'+i).style.opacity = s>=i ? 1 : 0; $('t'+i).style.opacity = s>=i ? 1 : 0; });
+  $('vbug').style.opacity = s>=4 ? 1 : 0;
+}};
+
+/* ---------- what combinatorics does: 3 x 3, then x 2 ---------- */
+const cT = ['Int','String','Nullable'], cO = ['INSERT','ALTER','DELETE'];
+function buildGrid(el, setting){
+  el.innerHTML = `<div class="gh corner">setting=${setting}</div>` + cO.map(o=>`<div class="gh colh" data-o="${o}">${o}</div>`).join('') +
+    cT.map(t => `<div class="gh rowh" data-t="${t}">${t}</div>` + cO.map(o=>`<div class="gc" data-t="${t}" data-o="${o}"><span class="t1">${t}</span><span class="t2">${o}</span><span class="t3">${setting}</span></div>`).join('')).join('');
+}
+buildGrid($('cg1'), 'on'); buildGrid($('cg2'), 'off');
+function fillGrid(el, start, per, base){
+  const cells = [...el.querySelectorAll('.gc')];
+  cells.forEach((c,k) => later(() => {
+    el.querySelectorAll('.gh.hot').forEach(h=>h.classList.remove('hot'));
+    el.querySelector(`.rowh[data-t="${c.dataset.t}"]`).classList.add('hot');
+    el.querySelector(`.colh[data-o="${c.dataset.o}"]`).classList.add('hot');
+    c.classList.add('on'); $('comboCount').textContent = base + k + 1;
+  }, start + k*per));
+  later(() => el.querySelectorAll('.gh.hot').forEach(h=>h.classList.remove('hot')), start + cells.length*per + 300);
+}
+anims.combo = { steps:3, render(s){
+  const g1 = $('cg1'), g2 = $('cg2');
+  [g1,g2].forEach(g => { g.querySelectorAll('.gc').forEach(c=>c.classList.remove('on')); g.querySelectorAll('.gh.hot').forEach(h=>h.classList.remove('hot')); });
+  g2.style.opacity = s >= 2 ? 1 : 0;
+  $('comboCount').textContent = s === 0 ? 0 : s === 1 ? 0 : s === 2 ? 9 : 18;
+  if(s === 1) fillGrid(g1, 300, 520, 0);
+  if(s >= 2) g1.querySelectorAll('.gc').forEach(c=>c.classList.add('on'));
+  if(s === 2) fillGrid(g2, 500, 320, 9);
+  if(s >= 3) g2.querySelectorAll('.gc').forEach(c=>c.classList.add('on'));
+}};
+
+/* ---------- a + b: 33 literals, 1,089 tests, then a run ---------- */
+const signs = ['-','+',''];
+const vLbl = ['inf','nan','0.0','0.1','123456.7','101.7654','3.14159…','1.1','0.333…','1.79e308','2.22e-308'];
+const vNum = [Infinity,NaN,0,0.1,123456.7,101.7654,3.141592653589793,1.1,1/3,1.7976931348623157e308,2.2250738585072014e-308];
+const lits = [], litNums = [];
+signs.forEach(sg => vLbl.forEach((v,i) => { lits.push(sg + v); litNums.push(sg === '-' ? -vNum[i] : vNum[i]); }));
+const fmt = x => Number.isNaN(x) ? 'nan' : x === Infinity ? 'inf' : x === -Infinity ? '-inf' : String(x);
+(function(){
+  const lit = $('pLit'), all = $('pAll');
+  lits.forEach(t => { const d = document.createElement('div'); d.className='pc'; d.textContent = t; lit.appendChild(d); });
+  for(let i=0;i<1089;i++){ const d=document.createElement('div'); d.className='tiny'; all.appendChild(d); }
+})();
+function showCase(i){
+  const a = i % 33, b = Math.floor(i / 33);
+  $('ppA').textContent = lits[a]; $('ppB').textContent = lits[b];
+  $('ppQ').textContent = `${lits[a]} + ${lits[b]}`;
+  $('ppE').textContent = fmt(litNums[a] + litNums[b]);
+  $('ppN').textContent = `#${(i+1).toLocaleString('en-US')} of 1,089`;
+}
+anims.product = { steps:3, render(s){
+  const lit = $('pLit'), wrap = $('pAllWrap');
+  const pcs = [...lit.children], tin = [...$('pAll').children], cnt = $('pCount');
+  pcs.forEach(c=>c.classList.remove('on')); tin.forEach(c=>c.classList.remove('on','ok','cur'));
+  lit.style.opacity = s <= 1 ? 1 : 0; wrap.style.opacity = s >= 2 ? 1 : 0;
+  cnt.textContent = s >= 2 ? '1,089' : '0';
+  if(s === 1) pcs.forEach((c,i)=>later(()=>c.classList.add('on'), i*40));
+  if(s === 2){
+    cnt.textContent='0';
+    tin.forEach((c,i)=>later(()=>c.classList.add('on'), Math.floor(i/33)*45));
+    const t0 = performance.now(), ms = 33*45;
+    const tick = t => { const p = Math.min(1,(t-t0)/ms); cnt.textContent = Math.round(1089*p).toLocaleString('en-US'); if(p<1) raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+  }
+  if(s === 3){
+    tin.forEach(c=>c.classList.add('on'));
+    let i = 0;
+    const run = () => {
+      if(i >= 1089){ tin[1088].classList.remove('cur'); return; }
+      const n = i < 6 ? 1 : i < 40 ? 1 : 7;
+      for(let k=0;k<n && i<1089;k++,i++){ if(i>0) tin[i-1].classList.remove('cur'); tin[i].classList.add('ok','cur'); }
+      showCase(i-1);
+      later(run, i <= 6 ? 1400 : i <= 40 ? 160 : 16);
+    };
+    showCase(0); later(run, 300);
+  }
+}};
+
+/* ---------- explosion ---------- */
+const xdata = [[1,5,'5 seconds'],[3,125,'2 minutes'],[6,15625,'4.3 hours'],[8,390625,'4.5 days'],[10,9765625,'113 days'],[12,244140625,'7.7 years']];
+$('xrows').innerHTML = xdata.map(([n,c,t],i)=>`<div class="xrow" data-step="${i}"><span>${n}</span><div><div class="xbar" data-w="${Math.log10(c)/Math.log10(244140625)*100}"></div></div><span class="mono">${c.toLocaleString('en-US')}</span><span class="${i>=4?'red':''}" style="font-weight:${i>=4?800:400}">${t}</span></div>`).join('');
+anims.explosion = { steps:6, render(s){
+  document.querySelectorAll('#xrows .xbar').forEach((b,i)=>{ b.style.width = i <= s ? b.dataset.w + '%' : '0'; });
+}};
+
+/* ---------- pairwise ---------- */
+const L9 = ['1111','1222','1333','2123','2231','2312','3132','3213','3321'];
+const pvals = [['Int','String','Nullable'],['MergeTree','Replicated','S3'],['Native','Parquet','CSV'],['on','off','default']];
+const pnames = ['type','engine','format','setting'];
+(function(){
+  const sq = $('sq81'); for(let i=0;i<81;i++) sq.appendChild(document.createElement('i'));
+  $('l9').innerHTML = '<tr><th>#</th>' + pnames.map((n,i)=>`<th data-c="${i}">${n}</th>`).join('') + '</tr>' + L9.map((r,ri)=>`<tr data-r="${ri}"><td style="color:var(--mut)">${ri+1}</td>` + [...r].map((d,ci)=>`<td data-c="${ci}">${pvals[ci][d-1]}</td>`).join('') + '</tr>').join('');
+})();
+function pairCycle(k){
+  const pairs = []; for(let i=0;i<4;i++) for(let j=i+1;j<4;j++) pairs.push([i,j]);
+  const [ci,cj] = pairs[k % pairs.length], tab = $('l9'), mx = $('mx');
+  tab.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl'));
+  tab.querySelectorAll('.rowhl').forEach(e=>e.classList.remove('rowhl'));
+  tab.querySelectorAll(`[data-c="${ci}"],[data-c="${cj}"]`).forEach(e=>e.classList.add('hl'));
+  $('pairTitle').innerHTML = `Every <b class="mint">${pnames[ci]}</b> × <b class="mint">${pnames[cj]}</b> pair:`;
+  mx.innerHTML = '<div class="h"></div>' + pvals[cj].map(v=>`<div class="h">${v}</div>`).join('') +
+    pvals[ci].map((v,a)=>`<div class="h">${v}</div>` + pvals[cj].map((_,b)=>`<div data-a="${a}" data-b="${b}"></div>`).join('')).join('');
+  $('pairMsg').textContent = '';
+  L9.forEach((r,ri) => later(() => {
+    tab.querySelectorAll('.rowhl').forEach(e=>e.classList.remove('rowhl'));
+    tab.querySelector(`tr[data-r="${ri}"]`).classList.add('rowhl');
+    const cell = mx.querySelector(`[data-a="${r[ci]-1}"][data-b="${r[cj]-1}"]`); cell.classList.add('ok'); cell.textContent = '✓';
+    if(ri === 8) $('pairMsg').textContent = '9 rows → all 9 pairs covered';
+  }, 400 + ri*330));
+  later(() => pairCycle(k+1), 400 + 9*330 + 1600);
+}
+anims.pairwise = { steps:4, render(s){
+  const sq = [...document.querySelectorAll('#sq81 i')];
+  $('l9').querySelectorAll('.hl,.rowhl').forEach(e=>e.classList.remove('hl','rowhl'));
+  sq.forEach(c => c.classList.toggle('on', s >= 2));
+  if(s === 1) sq.forEach((c,i)=>later(()=>c.classList.add('on'), i*18));
+  if(s >= 3) pairCycle(0);
+}};
+
+/* ---------- order: DELETE before INSERT keeps the row ---------- */
+const ops = [['INSERT x = 5','var(--sky)'],['ALTER ADD COLUMN y','var(--pale)'],['DELETE WHERE x = 5','var(--mint)']];
+const perms = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+$('opbox').innerHTML = ops.map(([t,c],i)=>`<div class="op" data-i="${i}" style="left:${i*345}px;color:${c};border-color:${c}">${t}</div>`).join('') + '<div class="res" id="opres"></div>';
+function placeOps(k){
+  const p = perms[k];
+  p.forEach((opIdx,pos)=>{ document.querySelector(`#opbox .op[data-i="${opIdx}"]`).style.left = (pos*345)+'px'; });
+  $('orderLbl').textContent = `order ${k+1} of 6`;
+  const keeps = p.indexOf(2) < p.indexOf(0);
+  const r = $('opres');
+  r.innerHTML = keeps ? '<b style="font-size:30px">1 row</b><span style="font-size:19px">x = 5, y = 0</span>' : '<b style="font-size:30px">0 rows</b><span style="font-size:19px">table is empty</span>';
+  r.style.background = keeps ? 'var(--blue)' : 'var(--bg3)'; r.style.color = keeps ? '#fff' : 'var(--fg)';
+}
+anims.order = { steps:4, render(s){
+  placeOps(0);
+  if(s >= 1){ let k = 0; every(()=>{ k = (k+1) % 6; placeOps(k); }, 1700); }
+}};
+
+/* ---------- interleave + cluster under stress ---------- */
+function drawIlv(){
+  const a = ['INSERT','ALTER','SELECT'], b = ['MERGE','DELETE','SELECT']; let i=0,j=0; const out=[];
+  while(i<3||j<3){ if(j>=3 || (i<3 && Math.random()<.5)) out.push(['A',a[i++]]); else out.push(['B',b[j++]]); }
+  $('ilv').innerHTML = out.map(([k,t])=>`<div class="st ${k}">${t}</div>`).join('');
+  $('ilvN').textContent = 'one of 20 possible orders';
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+const cluNodes = {
+  test: {x:0, y:95, w:250, h:110, nm:'test', sub:'random ALTERs'},
+  r1:   {x:540, y:0, w:300, h:84, nm:'replica 1', sub:'working…'},
+  r2:   {x:540, y:108, w:300, h:84, nm:'replica 2', sub:'working…'},
+  r3:   {x:540, y:216, w:300, h:84, nm:'replica 3', sub:'working…'},
+  keeper: {x:1150, y:108, w:250, h:84, nm:'Keeper', sub:'coordinates'},
+};
+const cluLinks = [['test','r1'],['test','r2'],['test','r3'],['r1','keeper'],['r2','keeper'],['r3','keeper']];
+const rightOf = n => [n.x+n.w, n.y+n.h/2], leftOf = n => [n.x, n.y+n.h/2];
+function cluBuild(){
+  const L = $('cluL'), N = $('cluN'); L.innerHTML = ''; N.innerHTML = ''; $('cluP').innerHTML = '';
+  cluLinks.forEach(([f,t]) => { const [x1,y1] = rightOf(cluNodes[f]), [x2,y2] = leftOf(cluNodes[t]);
+    const l = document.createElementNS(SVGNS,'line'); Object.entries({x1,y1,x2,y2}).forEach(([k,v])=>l.setAttribute(k,v));
+    l.setAttribute('class','ln'); l.id = `ln-${f}-${t}`; L.appendChild(l); });
+  Object.entries(cluNodes).forEach(([id,n]) => { const g = document.createElementNS(SVGNS,'g'); g.setAttribute('class','nd'); g.id = 'nd-'+id;
+    g.innerHTML = `<rect class="box" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="6"/><text class="nm" x="${n.x+22}" y="${n.y+n.h/2-4}">${n.nm}</text><text class="sub" x="${n.x+22}" y="${n.y+n.h/2+24}">${n.sub}</text>`;
+    N.appendChild(g); });
+  const f = document.createElementNS(SVGNS,'text'); f.setAttribute('class','flt'); f.id = 'cluFlt'; f.setAttribute('x', 880); f.setAttribute('y', 28); f.style.opacity = 0;
+  f.textContent = 'tc netem: +2 s delay, 20% loss'; L.appendChild(f);
+}
+function cluState(s){
+  const bad = s === 3, down = s === 4, ok = s >= 5;
+  $('ln-r1-keeper').classList.toggle('bad', bad); $('cluFlt').style.opacity = bad ? 1 : 0;
+  ['r1','r2','r3'].forEach(r => { const g = $('nd-'+r); g.classList.remove('down'); g.classList.toggle('ok', ok);
+    g.querySelector('.sub').textContent = ok ? 'checksum 9f3a ✓' : 'working…'; });
+  $('nd-keeper').querySelector('.sub').textContent = 'coordinates';
+  $('cluCap').innerHTML = [ '', '',
+    'Random groups of actions hit a 3-replica cluster <b class="mint">in parallel</b>, over and over.',
+    'Then we break the network: <b class="red">delay and packet loss</b> on one link.',
+    'Then a replica <b class="red">goes down</b> in the middle of the work, and comes back.',
+    'Stop and check: <b class="mint">all replicas hold the same data</b>. That is the oracle.' ][Math.min(s,5)];
+}
+function cluPacket(){
+  const cand = cluLinks.filter(([f,t]) => !(cluDown && (f==='r3' || t==='r3')));
+  let [f,t] = cand[Math.floor(Math.random()*cand.length)];
+  if(Math.random() < .5 && f !== 'test'){ [f,t] = [t,f]; }
+  const A = cluNodes[f], B = cluNodes[t];
+  const fwd = cluNodes[f].x < cluNodes[t].x;
+  const [x1,y1] = fwd ? rightOf(A) : leftOf(A), [x2,y2] = fwd ? leftOf(B) : rightOf(B);
+  const slow = cluBad && ((f==='r1'&&t==='keeper')||(f==='keeper'&&t==='r1'));
+  const c = document.createElementNS(SVGNS,'circle'); c.setAttribute('r', 8);
+  c.style.fill = f==='test' ? (Math.random()<.5 ? 'var(--sky)' : 'var(--mint)') : 'var(--pale)';
+  $('cluP').appendChild(c);
+  const dur = slow ? 2600 : 900, lost = slow && Math.random() < .4;
+  const frames = [{transform:`translate(${x1}px,${y1}px)`, opacity:1}, {transform:`translate(${x2}px,${y2}px)`, opacity: lost ? 0 : 1}];
+  if(lost){ frames[1].transform = `translate(${(x1+x2)/2}px,${(y1+y2)/2}px)`; c.style.fill = 'var(--red)'; }
+  c.animate(frames, {duration: lost ? dur/2 : dur, easing:'linear', fill:'forwards'});
+  later(() => c.remove(), dur + 50);
+}
+let cluBad = false, cluDown = false;
+anims.interleave = { steps:5, render(s){
+  drawIlv(); if(s === 1) every(drawIlv, 1300);
+  if(!$('nd-test')) cluBuild();
+  $('cluP').innerHTML = ''; cluBad = s === 3; cluDown = false; cluState(s);
+  if(s >= 2 && s <= 4) every(cluPacket, 140);
+  if(s === 4){
+    const cycle = () => { cluDown = true; const g = $('nd-r3'); g.classList.add('down'); g.querySelector('.sub').textContent = 'down';
+      later(() => { g.querySelector('.sub').textContent = 'restarting…'; }, 1300);
+      later(() => { cluDown = false; g.classList.remove('down'); g.querySelector('.sub').textContent = 'catching up…'; }, 2300); };
+    later(cycle, 600); every(cycle, 4500);
+  }
+}};
+
+/* ---------- scaled up: three live mini-animations ---------- */
+const svgEl = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k,v)); if(parent) parent.appendChild(e); return e; };
+function scSeqStart(){
+  const g = $('scSeq'); g.innerHTML = ''; $('scSeqN').textContent = '0';
+  const cols = [[15,'CREATE'],[31,'ALTER'],[31,'ALTER'],[31,'ALTER']], xs = [40,150,260,370];
+  const ys = cols.map(([n]) => Array.from({length:n}, (_,i) => 34 + i*(250/(n-1))));
+  cols.forEach(([n,lbl],c) => { svgEl('text',{x:xs[c],y:16,'text-anchor':'middle'},g).textContent = lbl;
+    ys[c].forEach(y => svgEl('circle',{cx:xs[c],cy:y,r:3,fill:'var(--gray)'},g)); });
+  const trail = svgEl('g',{},g), live = svgEl('g',{},g);
+  let n = 0;
+  const step = () => {
+    const pick = ys.map(col => col[Math.floor(Math.random()*col.length)]);
+    const pts = pick.map((y,c) => `${xs[c]},${y}`).join(' ');
+    svgEl('polyline',{points:pts,fill:'none',stroke:'var(--sky)','stroke-width':1,opacity:.18},trail);
+    if(trail.childNodes.length > 120) trail.removeChild(trail.firstChild);
+    live.innerHTML = '';
+    svgEl('polyline',{points:pts,fill:'none',stroke:'var(--mint)','stroke-width':3},live);
+    pick.forEach((y,c) => svgEl('circle',{cx:xs[c],cy:y,r:6,fill:'var(--mint)'},live));
+    n = n < 3000 ? n + (n < 20 ? 1 : 37) : 3000; $('scSeqN').textContent = Math.min(n,3000).toLocaleString('en-US');
+  };
+  step(); every(step, 260);
+}
+function scConStart(){
+  const g = $('scCon'); g.innerHTML = '';
+  const lanes = [50,130,210];
+  ['group 1','group 2','group 3'].forEach((t,i) => { svgEl('line',{x1:0,x2:390,y1:lanes[i]+38,y2:lanes[i]+38,stroke:'var(--line)'},g);
+    svgEl('text',{x:0,y:lanes[i]-6},g).textContent = t; });
+  const flow = svgEl('g',{},g);
+  const acts = ['ADD COLUMN','DROP PART','MOVE PART','UPDATE','DELETE','FREEZE','DROP COLUMN','ATTACH'];
+  const slide = (el, w, ms) => { el.animate([{transform:'translateX(400px)'},{transform:`translateX(${-w-20}px)`}], {duration:ms, easing:'linear', fill:'forwards'}); later(() => el.remove(), ms + 50); };
+  const free = [0,0,0];
+  const spawn = () => {
+    const now = performance.now(), open = [0,1,2].filter(i => free[i] <= now);
+    if(!open.length) return;
+    const l = open[Math.floor(Math.random()*open.length)], lbl = acts[Math.floor(Math.random()*acts.length)], w = 22 + lbl.length*8.4;
+    const grp = svgEl('g',{},flow); const col = Math.random() < .5 ? 'var(--sky)' : 'var(--mint)';
+    svgEl('rect',{x:0,y:lanes[l],width:w,height:30,rx:4,fill:'var(--bg3)',stroke:col,'stroke-width':2},grp);
+    const t = svgEl('text',{x:w/2,y:lanes[l]+20,'text-anchor':'middle'},grp); t.textContent = lbl; t.style.fill = col;
+    free[l] = now + (w + 14) * 4200 / (420 + w) + Math.random()*500;
+    slide(grp, w, 4200);
+  };
+  let k = 0;
+  const fault = () => {
+    const bad = k++ % 2 === 0, grp = svgEl('g',{},flow), c = bad ? 'var(--red)' : 'var(--gray)';
+    svgEl('rect',{x:0,y:30,width:34,height:228,fill:c,opacity:.28},grp);
+    const t = svgEl('text',{x:17,y:282,'text-anchor':'middle'},grp); t.textContent = bad ? 'network fault' : 'restart'; t.style.fill = c;
+    slide(grp, 34, 4200);
+  };
+  spawn(); every(spawn, 250); later(fault, 700); every(fault, 2100);
+}
+function scDatStart(){
+  const g = $('scDat'); g.innerHTML = '';
+  const types = ['bool','uint8','int8','uint16','int16','uint32','int32','uint64','int64','float','double','date32','timestamp','string','binary'];
+  const shapes = ['val','list','l·s','l·m','map'], cw = 34, ch = 15, x0 = 76, y0 = 26;
+  shapes.forEach((t,i) => { const e = svgEl('text',{x:x0+i*cw+cw/2-2,y:16,'text-anchor':'middle'},g); e.textContent = t; e.style.fontSize = '11px'; });
+  types.forEach((t,i) => { const e = svgEl('text',{x:x0-8,y:y0+i*ch+11,'text-anchor':'end'},g); e.textContent = t; e.style.fontSize = '11px'; });
+  const cells = []; types.forEach((_,r) => shapes.forEach((_,c) => cells.push(svgEl('rect',{x:x0+c*cw,y:y0+r*ch,width:cw-4,height:ch-3,rx:2,fill:'var(--sky)',opacity:.1},g))));
+  const codecs = ['NONE','SNAPPY','GZIP','BROTLI','LZ4','ZSTD'];
+  const arrow = svgEl('text',{x:262,y:y0+120,'text-anchor':'middle',opacity:0},g); arrow.textContent = '→'; arrow.style.fontSize = '26px';
+  const files = codecs.map((c,i) => { const grp = svgEl('g',{opacity:0},g); const y = y0 + i*39;
+    const box = svgEl('rect',{x:282,y,width:104,height:32,rx:4,fill:'var(--bg3)',stroke:'var(--sky)','stroke-width':2},grp);
+    svgEl('text',{x:294,y:y+21},grp).textContent = c;
+    const ok = svgEl('text',{x:372,y:y+21,'text-anchor':'middle',opacity:0},grp); ok.textContent = '✓'; ok.style.fill = 'var(--mint)'; ok.style.fontSize = '17px';
+    return {grp, box, ok}; });
+  const cycle = () => {
+    cells.forEach(c => c.setAttribute('opacity', .1)); arrow.setAttribute('opacity',0);
+    files.forEach(f => { f.grp.setAttribute('opacity',0); f.ok.setAttribute('opacity',0); f.box.setAttribute('stroke','var(--sky)'); });
+    cells.forEach((c,i) => later(() => c.setAttribute('opacity', .9), 200 + i*22));
+    const t1 = 200 + cells.length*22 + 200;
+    later(() => arrow.setAttribute('opacity',1), t1);
+    files.forEach((f,i) => later(() => f.grp.setAttribute('opacity',1), t1 + 200 + i*180));
+    files.forEach((f,i) => later(() => { f.ok.setAttribute('opacity',1); f.box.setAttribute('stroke','var(--mint)'); }, t1 + 1500 + i*220));
+  };
+  cycle(); every(cycle, 6500);
+}
+anims.scale = { steps:3, render(s){
+  ['scSeq','scCon','scDat'].forEach(id => $(id).innerHTML = '');
+  if(s >= 1) scSeqStart();
+  if(s >= 2) scConStart();
+  if(s >= 3) scDatStart();
+}};
+
+/* ---------- scheduled CI: 13 versions, one week ---------- */
+const schRows = [
+  ['ClickHouse head','x86 · arm64','sky',[2,4],'fail'],
+  ['ClickHouse 26.8','x86 · arm64','sky',[6],'fail'],
+  ['ClickHouse 26.3','x86','sky',[6],'fail'],
+  ['ClickHouse 25.8','x86','sky',[6],'pass'],
+  ['Antalya 26.6','x86 · arm64','mint',[6],'fail'],
+  ['Antalya 26.3','x86','mint',[6],'pass'],
+  ['Antalya 25.8','x86','mint',[6],'pass'],
+  ['Altinity Stable 26.3','x86 · arm64','pale',[6],'fail'],
+  ['Altinity Stable 25.8','x86','pale',[6],'pass'],
+  ['Altinity Stable 25.3','x86','pale',[6],'pass'],
+  ['Altinity Stable 24.8','x86','pale',[6],'pass'],
+  ['Altinity Stable 24.3','x86','pale',[6],'pass'],
+  ['Altinity Stable 23.8','x86','pale',[6],'pass'],
+];
+const schDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+(function(){
+  const g = $('sch'); let h = '<span></span><span></span>' + schDays.map(d => `<span class="dh">${d}</span>`).join('');
+  schRows.forEach(([v,a,c,days],r) => { h += `<span class="vn" style="color:var(--${c})">${v}</span><span class="ar">${a}</span>`;
+    schDays.forEach((_,d) => { h += `<span class="dc${days.includes(d) ? ' plan' : ''}" data-r="${r}" data-d="${d}"><i></i><b></b></span>`; }); });
+  g.innerHTML = h;
+})();
+function schReset(){ document.querySelectorAll('#sch .dc').forEach(c => { c.classList.remove('pass','fail'); c.querySelector('i').style.width = '0'; c.querySelector('b').textContent = ''; }); }
+function schWeek(){
+  schReset();
+  const hd = $('schHead'), cells = [...document.querySelectorAll('#sch .dc')], wrap = $('schWrap').getBoundingClientRect();
+  const colX = d => { const c = cells.find(x => +x.dataset.d === d); const r = c.getBoundingClientRect(); return (r.left - wrap.left) / (wrap.width / $('schWrap').offsetWidth); };
+  const colW = cells[0].offsetWidth;
+  hd.style.transition = 'none'; hd.style.left = colX(0) + 'px'; hd.style.opacity = 1; void hd.offsetWidth; hd.style.transition = '';
+  schDays.forEach((_,d) => later(() => {
+    hd.style.left = (colX(d) + colW/2) + 'px';
+    cells.filter(c => +c.dataset.d === d && c.classList.contains('plan')).forEach((c,k) => {
+      later(() => { c.querySelector('i').style.width = '100%'; }, 150 + k*40);
+      later(() => { const res = schRows[+c.dataset.r][4]; c.classList.add(res); c.querySelector('b').textContent = res; }, 750 + k*40);
+    });
+  }, d * 900));
+  later(() => { hd.style.opacity = 0; }, 7 * 900 + 600);
+}
+anims.sched = { steps:2, render(s){
+  const vn = [...document.querySelectorAll('#sch .vn')], ar = [...document.querySelectorAll('#sch .ar')];
+  vn.concat(ar).forEach(e => e.classList.remove('in')); schReset(); $('schHead').style.opacity = 0;
+  if(s === 0) vn.forEach((e,i) => later(() => { e.classList.add('in'); ar[i].classList.add('in'); }, 150 + i*90));
+  else { vn.concat(ar).forEach(e => e.classList.add('in')); }
+  if(s >= 1){ schWeek(); every(schWeek, 7*900 + 2600); }
+}};
+
+/* ---------- real bugs: parquet reader v3 ---------- */
+const pqTruth = ['true','false','true','true','false','true'];
+function pqFill(lane, vals, cls){ $(lane).querySelector('.pqout').innerHTML = vals.map((v,i) => `<b class="${cls ? cls(v,i) : ''}">${v}</b>`).join(''); }
+function pqRunOnce(n){
+  const outs = document.querySelectorAll('.pqout b'); outs.forEach(b => b.classList.add('flip'));
+  later(() => {
+    const got = pqTruth.map(v => Math.random() < .35 ? (v === 'true' ? 'false' : 'true') : v);
+    if(got.every((v,i) => v === pqTruth[i])) got[2] = 'false';
+    pqFill('pqOld', pqTruth, () => 'ok');
+    pqFill('pqNew', got, (v,i) => v === pqTruth[i] ? 'ok' : 'bad');
+    const diff = got.filter((v,i) => v !== pqTruth[i]).length;
+    $('pqRun').innerHTML = `SELECT bool FROM file · run #${n} · <b class="red">${diff} of 6 differ</b>`;
+  }, 180);
+}
+anims.pqbugs = { steps:3, render(s){
+  document.querySelectorAll('.pqchips span').forEach(c => c.classList.remove('hot'));
+  $('pqNew').querySelector('.pqcrash').classList.remove('on'); $('pqNew').querySelector('.pqr').classList.remove('dead');
+  pqFill('pqOld', pqTruth, () => 'ok'); pqFill('pqNew', pqTruth, () => 'ok'); $('pqRun').textContent = ''; $('pqTag').textContent = '';
+  $('pqCap').innerHTML = s === 0 ? 'When the two readers agree, the new one is probably right.' : '';
+  if(s === 1){
+    ['bool','enum'].forEach(k => document.querySelector(`.pqchips [data-k="${k}"]`).classList.add('hot'));
+    $('pqTag').innerHTML = '<span class="red">#87412</span> · fixed in #87442';
+    $('pqCap').innerHTML = 'Bug 1: run the <b>same query</b> on the <b>same file</b> again, and the new reader gives <b class="red">different answers</b>. The old one never changes.';
+    let n = 1; later(() => pqRunOnce(n), 400); every(() => pqRunOnce(++n), 1400);
+  }
+  if(s === 2){
+    ['bool','bloom','gzip'].forEach(k => document.querySelector(`.pqchips [data-k="${k}"]`).classList.add('hot'));
+    $('pqTag').innerHTML = '<span class="red">#87509</span> · fixed';
+    $('pqRun').textContent = 'SELECT * FROM file';
+    $('pqCap').innerHTML = 'Bug 2: one combination, <b class="red">Bool + bloom filter + gzip</b>, read with the new reader, <b class="red">crashes the whole server</b>.';
+    const go = () => { const c = $('pqNew').querySelector('.pqcrash'), r = $('pqNew').querySelector('.pqr');
+      c.classList.remove('on'); r.classList.remove('dead'); pqFill('pqNew', pqTruth, () => 'ok');
+      later(() => { r.classList.add('dead'); c.classList.add('on'); }, 900); };
+    go(); every(go, 3600);
+  }
+  if(s === 3){
+    ['bool','bloom','gzip'].forEach(k => document.querySelector(`.pqchips [data-k="${k}"]`).classList.add('hot'));
+    $('pqNew').querySelector('.pqcrash').classList.add('on'); $('pqNew').querySelector('.pqr').classList.add('dead');
+    $('pqTag').innerHTML = '<span class="red">5 bugs</span> in 2 days, all closed';
+    $('pqCap').innerHTML = 'Nobody wrote a test for "Bool + bloom filter + gzip + new reader". The test was: <b class="mint">every file, both readers, compare</b>.';
+  }
+}};
+
+/* ---------- values(): build A, B, then pair them ---------- */
+const vv = [0,1,127,255];
+$('vtA').innerHTML = '<tr><th>a</th></tr>' + vv.map((v,i)=>`<tr data-i="${i}"><td>${v}</td></tr>`).join('');
+$('vtB').innerHTML = '<tr><th>b</th></tr>' + vv.map((v,i)=>`<tr data-i="${i}"><td>${v}</td></tr>`).join('');
+const rRows = []; vv.forEach(a => vv.forEach(b => rRows.push([a,b,a+b])));
+const rTable = (rows, off) => '<tr><th>a</th><th>b</th><th>result</th></tr>' + rows.map((r,i)=>`<tr data-k="${off+i}" style="opacity:0;transition:opacity .25s"><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+$('vtR1').innerHTML = rTable(rRows.slice(0,8), 0); $('vtR2').innerHTML = rTable(rRows.slice(8), 8);
+anims.values = { steps:4, render(s){
+  ['cvA','cvB','cvC'].forEach(id => $(id).classList.remove('hot-code'));
+  if(s === 1) $('cvA').classList.add('hot-code');
+  if(s === 2) $('cvB').classList.add('hot-code');
+  if(s >= 3) $('cvC').classList.add('hot-code');
+  document.querySelectorAll('#vtA tr.hl,#vtB tr.hl,#vtR1 tr.hl,#vtR2 tr.hl').forEach(r=>r.classList.remove('hl'));
+  const rr = [...document.querySelectorAll('#vtR1 tr[data-k],#vtR2 tr[data-k]')];
+  rr.forEach(r => r.style.opacity = s >= 4 ? 1 : 0);
+  if(s === 3){
+    rr.forEach((row,k) => later(() => {
+      document.querySelectorAll('#vtA tr.hl,#vtB tr.hl,#vtR1 tr.hl,#vtR2 tr.hl').forEach(r=>r.classList.remove('hl'));
+      const i = Math.floor(k/4), j = k % 4;
+      document.querySelector(`#vtA tr[data-i="${i}"]`).classList.add('hl');
+      document.querySelector(`#vtB tr[data-i="${j}"]`).classList.add('hl');
+      row.style.opacity = 1; row.classList.add('hl');
+    }, 400 + k*420));
+    later(() => document.querySelectorAll('#vtA tr.hl,#vtB tr.hl,#vtR1 tr.hl,#vtR2 tr.hl').forEach(r=>r.classList.remove('hl')), 400 + 16*420 + 400);
+  }
+}};
+
+/* ---------- code highlight ---------- */
+anims.code = { steps:5, render(s){
+  const pre = $('plusCode'), hl = $('hl');
+  const lh = 22*1.5, top0 = 22;
+  const ranges = {1:[0,1], 2:[6,7], 3:[9,9], 4:[10,11], 5:[0,11]};
+  if(!ranges[s]){ hl.style.opacity = 0; return; }
+  const [a,b] = ranges[s];
+  hl.style.opacity = 1; hl.style.left = '8px'; hl.style.width = (pre.offsetWidth-16)+'px';
+  hl.style.top = (top0 + a*lh - 4)+'px'; hl.style.height = ((b-a+1)*lh + 8)+'px';
+}};
+
+/* ---------- copy buttons on runnable code ---------- */
+document.querySelectorAll('pre.code').forEach(pre => {
+  if(!/SELECT|regression\.py/.test(pre.textContent)) return;
+  if(pre.closest('[data-anim]')) return;
+  const btn = document.createElement('button'); btn.className = 'copy'; btn.textContent = 'copy';
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const clone = pre.cloneNode(true); clone.querySelector('.copy')?.remove();
+    const text = clone.textContent.trimEnd();
+    const done = () => { btn.textContent = 'copied ✓'; setTimeout(()=>btn.textContent='copy', 1200); };
+    if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done).catch(()=>fallback(text, done)); else fallback(text, done);
+  });
+  pre.appendChild(btn);
+});
+function fallback(text, done){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); done(); }catch(e){} ta.remove(); }
+
+/* ---------- navigation ---------- */
+function stepsOf(i){
+  const sl = slides[i]; let m = 0;
+  sl.querySelectorAll('[data-step]').forEach(e => m = Math.max(m, +e.dataset.step));
+  const a = anims[sl.dataset.anim]; if(a) m = Math.max(m, a.steps);
+  return m;
+}
+function render(){
+  clearTimers(); stopRaf();
+  slides.forEach((s,i)=>s.classList.toggle('active', i===cur));
+  const sl = slides[cur];
+  stage.classList.toggle('cover-on', sl.classList.contains('cover'));
+  sl.querySelectorAll('[data-step]').forEach(e => e.classList.toggle('on', +e.dataset.step <= step));
+  const a = anims[sl.dataset.anim];
+  if(a){ if(a.enter) a.enter(); if(a.render) a.render(step); }
+  const n = sl.querySelector('aside.notes'); notesEl.innerHTML = n ? `<b>Slide ${cur+1}</b> · ${n.innerHTML}` : '';
+  $('progress').style.width = ((cur+1)/slides.length*100)+'%';
+  const st = stepsOf(cur);
+  $('slideNo').textContent = `${cur+1} / ${slides.length}` + (st ? `  ·  ${step}/${st}` : '');
+  history.replaceState(null, '', '#'+(cur+1));
+}
+function next(){ if(step < stepsOf(cur)) step++; else if(cur < slides.length-1){ cur++; step = 0; } render(); }
+function prev(){ if(step > 0) step--; else if(cur > 0){ cur--; step = stepsOf(cur); } render(); }
+function go(i){ cur = Math.max(0, Math.min(slides.length-1, i)); step = 0; render(); }
+
+addEventListener('keydown', e => {
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if(['ArrowRight','ArrowDown',' ','PageDown','Enter'].includes(k)){ e.preventDefault(); next(); }
+  else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(k)){ e.preventDefault(); prev(); }
+  else if(k === 'Home') go(0);
+  else if(k === 'End') go(slides.length-1);
+  else if(k === 'n' || k === 'N') notesEl.classList.toggle('show');
+  else if(k === 't' || k === 'T'){ document.body.classList.toggle('light'); render(); }
+  else if(k === 'f' || k === 'F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
+  else if(k === 'r' || k === 'R') render();
+});
+/* #12 opens slide 12, #12.3 at step 3, #12.last at its last step; ?light starts in the light theme */
+if(/light/.test(location.search)) document.body.classList.add('light');
+const [hs, hst] = location.hash.slice(1).split('.'); const h = parseInt(hs);
+if(h) cur = Math.max(0, Math.min(slides.length-1, h-1));
+if(hst) step = hst === 'last' ? stepsOf(cur) : Math.min(stepsOf(cur), parseInt(hst) || 0);
+render();
+})();
+</script>
+</body>
+</html>
