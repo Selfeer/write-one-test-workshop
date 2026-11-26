@@ -175,6 +175,16 @@ table.l9 tr.rowhl td.hl{background:var(--blue);color:#fff}
 .st.A{color:var(--sky);border-color:var(--sky)} .st.B{color:var(--mint);border-color:var(--mint)}
 .ilvl{display:flex;align-items:center;gap:20px;margin-bottom:8px}
 .ilvl>span{width:170px;font-size:24px;font-weight:700}
+.qap{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:20px 26px}
+.qap h3{margin:0} .qas{font-size:19px;color:var(--mut);margin:4px 0 14px}
+.qagrid{display:grid;grid-template-columns:repeat(20,1fr);gap:4px}
+.qagrid i{aspect-ratio:1;border-radius:3px;background:var(--bg3);transition:background .25s,transform .25s}
+.qagrid i.t{background:var(--sky);transform:scale(1.15)} .qagrid i.r{background:var(--mint)}
+.qagrid i.bug{background:var(--red);transform:scale(1.25);box-shadow:0 0 10px var(--red)}
+.qatick{font-size:17px;color:var(--mut);height:24px;margin-top:12px;white-space:nowrap;overflow:hidden}
+.qacnt{font-size:24px;margin-top:2px}
+.qavs{display:grid;grid-template-columns:auto auto 1fr;gap:6px 20px;margin-top:20px;font-size:23px;align-items:baseline}
+.qavs>b{color:var(--sky)}
 .pq{display:flex;align-items:center;gap:0}
 .pqfile{width:300px;background:var(--bg2);border:2px solid var(--line);border-radius:6px;padding:18px;border-top:6px solid var(--sky)}
 .pqf-t{font:700 24px var(--mono);margin-bottom:12px}
@@ -360,22 +370,9 @@ table.l9 tr.rowhl td.hl{background:var(--blue);color:#fff}
   <aside class="notes">Step 1: run-length encoding, "DE five times". Step 2: delta encoding, so each timestamp becomes a small number. Step 3: a general compressor on top. Ratios depend on the data. Several times smaller is common for this kind of data, but don't promise a number.</aside>
 </section>
 
-<!-- 7 GRANULES -->
-<section class="slide" data-anim="granules">
-  <div class="kicker">Why columnar is fast · 3</div>
-  <h2>Skip whole blocks you don't need</h2>
-  <pre class="code" style="font-size:22px;margin-bottom:24px"><span class="kw">SELECT</span> <span class="fn">count</span>() <span class="kw">FROM</span> events <span class="kw">WHERE</span> date <span class="kw">BETWEEN</span> <span class="str">'2024-06-01'</span> <span class="kw">AND</span> <span class="str">'2024-06-30'</span></pre>
-  <div class="gran" id="gran"></div>
-  <div class="row" style="margin-top:30px">
-    <p data-step="1" class="grow" style="margin:0">Data is sorted by the key and split into <b>granules</b> of 8,192 rows. A small index stores the <b class="sky">first key of each granule</b>.</p>
-    <p data-step="2" class="grow" style="margin:0">The index shows only <b class="mint">2 granules</b> can match, so ClickHouse reads 16,384 rows instead of 131,072.</p>
-  </div>
-  <aside class="notes">This is the sparse primary index. It's tiny, so it stays in memory, and it lets ClickHouse skip most of the table.</aside>
-</section>
-
 <!-- 8 PARALLEL + DISTRIBUTED -->
 <section class="slide" data-anim="cluster">
-  <div class="kicker">Why columnar is fast · 4</div>
+  <div class="kicker">Why columnar is fast · 3</div>
   <h2>Use every core, then every server</h2>
   <div class="row" style="align-items:flex-start">
     <div style="width:540px">
@@ -424,6 +421,34 @@ table.l9 tr.rowhl td.hl{background:var(--blue);color:#fff}
   <div class="num">02</div>
   <h1>What do we test, and why?</h1>
   <aside class="notes">Section 2: about 7 minutes.</aside>
+</section>
+
+<!-- 9b STANDARD QA VS OURS -->
+<section class="slide" data-anim="qavs">
+  <div class="kicker">How we test</div>
+  <h2 style="margin-bottom:22px">Pick cases by hand, or <span class="sky">describe the space</span></h2>
+  <div class="row" style="gap:40px;align-items:flex-start">
+    <div class="qap">
+      <h3 class="mut">Typical QA</h3>
+      <p class="qas">A tester writes test cases one by one</p>
+      <div class="qagrid" id="qaL"></div>
+      <div class="qatick mono" id="qaLt"></div>
+      <div class="qacnt" id="qaLc"></div>
+    </div>
+    <div class="qap" data-step="1">
+      <h3 class="sky">What we do</h3>
+      <p class="qas mono">either(type) × either(setting) × either(version) …</p>
+      <div class="qagrid" id="qaR"></div>
+      <div class="qatick mono" id="qaRt"></div>
+      <div class="qacnt" id="qaRc"></div>
+    </div>
+  </div>
+  <div class="qavs" data-step="2">
+    <span class="mut">writes each case</span><b>→</b><span>describes the variables; code makes the cases</span>
+    <span class="mut">types the expected answer</span><b>→</b><span>an <b class="mint">oracle</b> computes it</span>
+    <span class="mut">runs before a release</span><b>→</b><span>runs <b class="mint">every week</b>, on every version</span>
+  </div>
+  <aside class="notes">The grid is every situation the database can be in: inputs, types, settings, versions, cluster states. Five bugs are hidden in it, and they sit where features meet, away from the normal path. Left: a careful tester writes good cases, but they cluster around the normal path, so all of them pass and no bug is found. Step 1, right: we describe the variables and their values, and code generates every combination (or a sample of it); the hidden bugs show up. Step 2: the three differences. Both are useful; manual cases are great for new features. Our point is only that a database has too many situations to pick by hand.</aside>
 </section>
 
 <!-- 10 NOT BENCHMARKS -->
@@ -1045,20 +1070,6 @@ anims.compress = { steps:3, render(s){
   if(s >= 3) later(()=>{ bar.style.width = '130px'; }, 300);
 }};
 
-/* ---------- granules ---------- */
-(function(){
-  const months = ['2023-11','2023-12','2024-01','2024-02','2024-03','2024-03','2024-04','2024-05','2024-06','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12'];
-  $('gran').innerHTML = months.map((m,i)=>`<div class="g" data-i="${i}"><div class="mk">${m}-${String((i*7)%27+1).padStart(2,'0')}</div><div style="font-size:15px;color:var(--mut)">granule ${i}</div></div>`).join('');
-})();
-anims.granules = { steps:2, render(s){
-  document.querySelectorAll('#gran .g').forEach(el => {
-    const i = +el.dataset.i, hit = i === 8 || i === 9;
-    el.classList.toggle('idx', s >= 1);
-    el.classList.toggle('skip', s >= 2 && !hit);
-    el.classList.toggle('hit', s >= 2 && hit);
-  });
-}};
-
 /* ---------- cluster ---------- */
 anims.cluster = { steps:4, render(s){
   const sv = $('clusterSvg');
@@ -1450,6 +1461,36 @@ anims.pqbugs = { steps:3, render(s){
     $('pqNew').querySelector('.pqcrash').classList.add('on'); $('pqNew').querySelector('.pqr').classList.add('dead');
     $('pqTag').innerHTML = '<span class="red">5 bugs</span> in 2 days, all closed';
     $('pqCap').innerHTML = 'Nobody wrote a test for "Bool + bloom filter + gzip + new reader". The test was: <b class="mint">every file, both readers, compare</b>.';
+  }
+}};
+
+/* ---------- typical QA vs combinatorial ---------- */
+const QW = 20, QH = 9, qaBugs = [[18,1],[2,8],[14,7],[19,8],[10,0]];
+const qaHand = [[5,4,'TC-1  create table, insert 3 rows, select them'],[6,4,'TC-2  select with WHERE'],[5,5,'TC-3  insert an empty string'],
+  [7,3,'TC-4  ALTER ADD COLUMN, then select'],[6,5,'TC-5  drop the table'],[4,4,'TC-6  insert NULL into a Nullable column'],[7,5,'TC-7  select with ORDER BY'],[5,3,'TC-8  insert 1,000 rows']];
+function qaBuild(id){ const g = $(id); g.innerHTML = ''; for(let i=0;i<QW*QH;i++) g.appendChild(document.createElement('i')); return [...g.children]; }
+const qaAt = (cells,x,y) => cells[y*QW + x];
+anims.qavs = { steps:2, render(s){
+  const L = qaBuild('qaL'), R = qaBuild('qaR');
+  $('qaLt').textContent = ''; $('qaRt').textContent = ''; $('qaLc').innerHTML = ''; $('qaRc').innerHTML = '';
+  const showLeft = (cnt) => { qaHand.slice(0,cnt).forEach(([x,y]) => qaAt(L,x,y).classList.add('t'));
+    $('qaLc').innerHTML = `<b>${cnt}</b> tests · <b class="mut">0 bugs found</b>`; };
+  if(s === 0){
+    qaHand.forEach(([x,y,t],i) => later(() => { qaAt(L,x,y).classList.add('t'); $('qaLt').textContent = t + '  ✓';
+      $('qaLc').innerHTML = `<b>${i+1}</b> tests · <b class="mut">0 bugs found</b>`; }, 400 + i*750));
+  } else showLeft(qaHand.length);
+  if(s >= 1){
+    $('qaLt').textContent = 'all pass ✓';
+    const order = R.map((_,i) => i).sort(() => Math.random() - .5);
+    const isBug = i => qaBugs.some(([x,y]) => y*QW + x === i);
+    let found = 0;
+    const fill = (i, k) => { R[i].classList.add(isBug(i) ? 'bug' : 'r'); if(isBug(i)) found++;
+      $('qaRc').innerHTML = `<b>${k+1}</b> combinations · <b class="${found ? 'red' : 'mut'}">${found} bugs found</b>`;
+      if(isBug(i)){ const [x,y] = qaBugs.find(([x,y]) => y*QW + x === i); qaAt(L,x,y).classList.add('bug'); } };
+    if(s === 1){
+      order.forEach((i,k) => later(() => fill(i,k), 500 + k*14));
+      later(() => { $('qaRt').textContent = 'the bugs were there all along, where nobody looked'; }, 500 + order.length*14 + 300);
+    } else { order.forEach((i,k) => fill(i,k)); $('qaRt').textContent = 'the bugs were there all along, where nobody looked'; }
   }
 }};
 

@@ -13,8 +13,8 @@ the Metropolis typeface (SIL Open Font License, in `src/fonts/`), the logo (`src
 | Time | Block | Slides | What the audience does |
 |---|---|---|---|
 | 0:00–0:02 | Opening + agenda | 1–2 | Show of hands: tests? SQL? ClickHouse? |
-| 0:02–0:10 | **What ClickHouse is, and why it's fast** | 3–8 | Watch: OLTP vs OLAP, row vs column, compression, skipping granules, cores and shards |
-| 0:10–0:17 | **What we test, and why** | 9–14 | See the weekly CI runs (slide 12); name things that could vary in a test (slide 14) |
+| 0:02–0:10 | **What ClickHouse is, and why it's fast** | 3–7 | Watch: OLTP vs OLAP, row vs column, compression, cores and shards |
+| 0:10–0:17 | **What we test, and why** | 8–14 | Typical QA vs describing the whole space (slide 9); see the weekly CI runs (slide 12); name things that could vary in a test (slide 14) |
 | 0:17–0:32 | **Combinatorics** | 15–24 | Watch the counts grow; discuss which combinations to choose; two real bugs (slide 24) |
 | 0:32–0:47 | **Hands-on: fiddle.clickhouse.com** | 25–31 | Predict each result, then run it |
 | 0:47–0:57 | **Real suite demo** | 32–35 | Watch `plus.py` run; suggest a value to add |
