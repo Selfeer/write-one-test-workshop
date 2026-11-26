@@ -1,7 +1,7 @@
 # Write one test, break a thousand ways: workshop plan (60 min)
 
 Deck: `workshop/index.html`. Open it in any browser; it works offline (fonts and logo are embedded).
-Keys: → / Space / clicker = next step, ← = back, N = speaker notes, T = light theme
+Keys: → / Space / clicker = next step, ← = back, T = light theme
 (use it in bright rooms), F = fullscreen. `index.html#15` opens slide 15; `index.html?light` starts in the light theme.
 
 Editing: change `src/deck.html`, then run `python3 workshop/build.py` to regenerate `index.html`.
